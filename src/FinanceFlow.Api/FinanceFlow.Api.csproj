@@ -5,6 +5,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.0" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\FinanceFlow.Domain\FinanceFlow.Domain.csproj" />
     <ProjectReference Include="..\FinanceFlow.Infrastructure\FinanceFlow.Infrastructure.csproj" />
   </ItemGroup>
