@@ -1,0 +1,29 @@
+name: Backend CI
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "src/**"
+      - "database/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "database/**"
+      - ".github/workflows/backend.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Restore
+        run: dotnet restore src/FinanceFlow.Api/FinanceFlow.Api.csproj
+      - name: Build
+        run: dotnet build src/FinanceFlow.Api/FinanceFlow.Api.csproj --configuration Release --no-restore
