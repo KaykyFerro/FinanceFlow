@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FinanceFlow | Gestão Financeira</title>
+<script>
+(function () {
+  const token = localStorage.getItem('financeflow.accessToken');
+  if (!token) {
+    window.location.replace('frontend/auth.html');
+  }
+})();
+</script>
 <style>
 :root{--green:#0aa579;--blue:#3569e8;--red:#ed2858;--bg:#f7f8fa;--text:#10213f;--muted:#697386;--card:#fff;border: #e7e9ee}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--text)}
@@ -11,8 +19,10 @@
 </style>
 </head>
 <body>
-<div class="app"><aside class="side"><div class="brand"><div class="logo">▣</div><div><b>FinanceFlow</b><small>Gestão Financeira</small></div></div><div class="user">Ambiente de demonstração<strong>FinanceFlow</strong></div><nav class="nav"><a class="active" href="#">▦ &nbsp; Dashboard</a><a href="#">▤ &nbsp; Transações</a><a href="#">▥ &nbsp; Relatórios</a><a href="#">◇ &nbsp; Categorias</a><a href="#">◎ &nbsp; Orçamentos</a><a href="#">⚙ &nbsp; Configurações</a></nav></aside>
+<div class="app"><aside class="side"><div class="brand"><div class="logo">▣</div><div><b>FinanceFlow</b><small>Gestão Financeira</small></div></div><div class="user">Ambiente autenticado<strong id="userName">FinanceFlow</strong></div><nav class="nav"><a class="active" href="#">▦ &nbsp; Dashboard</a><a href="#">▤ &nbsp; Transações</a><a href="#">▥ &nbsp; Relatórios</a><a href="#">◇ &nbsp; Categorias</a><a href="#">◎ &nbsp; Orçamentos</a><a href="#">⚙ &nbsp; Configurações</a></nav></aside>
 <main class="main"><div class="top"><div><h1>Dashboard Financeiro</h1><p>Visão geral das suas finanças</p></div><button class="button">＋ &nbsp; Nova Transação</button></div><div class="month"><button class="arrow">‹</button>Agosto de 2026<button class="arrow">›</button></div>
 <section class="cards"><div class="card"><span class="icon ig">↗</span><div class="label">Entradas do Mês</div><div class="value green">R$ 0,00</div></div><div class="card"><span class="icon ir">↘</span><div class="label">Saídas do Mês</div><div class="value red">R$ 0,00</div></div><div class="card"><span class="icon ib">▣</span><div class="label">Patrimônio</div><div class="value blue">R$ 0,00</div></div><div class="card"><span class="icon ib">⌂</span><div class="label">Investimentos</div><div class="value blue">R$ 0,00</div></div></section>
 <section class="content"><div class="panel"><h2>Fluxo de Caixa</h2><div class="empty"><div class="chart">⌁↗</div><b>Nenhuma transação confirmada ainda</b><br><span>Confirme suas transações para visualizar os gráficos</span></div></div><div class="panel"><h2>Contas e Saldos</h2><div class="accounts"><div class="account"><div><b>Nubank</b><span>Conta corrente</span></div><span class="money">R$ 0,00</span></div><div class="account"><div><b>Caixinha</b><span>CDI</span></div><span class="money">R$ 0,00</span></div><div class="account"><div><b>Santander</b><span>Conta + Poupança</span></div><span class="money">R$ 0,00</span></div><div class="account"><div><b>Dinheiro</b><span>Carteira</span></div><span class="money">R$ 0,00</span></div></div></div></section>
-</main></div></body></html>
+</main></div>
+</body>
+</html>
