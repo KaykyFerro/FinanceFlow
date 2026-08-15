@@ -31,30 +31,60 @@ public sealed class SmtpEmailSender(IOptions<SmtpOptions> options, ILogger<SmtpE
         ValidateConfiguration();
         cancellationToken.ThrowIfCancellationRequested();
 
-        using var client = new SmtpClient(_options.Host, _options.Port)
-        {
-            EnableSsl = _options.EnableSsl,
-            UseDefaultCredentials = false,
-            Credentials = new NetworkCredential(_options.Username, _options.Password),
-            DeliveryMethod = SmtpDeliveryMethod.Network
-        };
+        logger.LogInformation(
+            "Starting FinanceFlow SMTP delivery. Host={Host}, Port={Port}, Username={Username}, From={From}, Recipient={Recipient}, Ssl={Ssl}",
+            _options.Host, _options.Port, _options.Username, _options.From, email, _options.EnableSsl);
 
-        using var message = new MailMessage(_options.From, email, subject, html)
+        try
         {
-            IsBodyHtml = true
-        };
+            using var client = new SmtpClient(_options.Host, _options.Port)
+            {
+                EnableSsl = _options.EnableSsl,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential(_options.Username, _options.Password),
+                DeliveryMethod = SmtpDeliveryMethod.Network,
+                Timeout = 30000
+            };
 
-        await client.SendMailAsync(message, cancellationToken);
-        logger.LogInformation("FinanceFlow email sent to {Email} with subject {Subject}", email, subject);
+            using var message = new MailMessage
+            {
+                From = new MailAddress(_options.From, "FinanceFlow"),
+                Subject = subject,
+                Body = html,
+                IsBodyHtml = true
+            };
+            message.To.Add(new MailAddress(email));
+
+            await client.SendMailAsync(message, cancellationToken);
+            logger.LogInformation("FinanceFlow SMTP delivery completed successfully for {Recipient}", email);
+        }
+        catch (SmtpException ex)
+        {
+            logger.LogError(ex,
+                "FinanceFlow SMTP delivery failed. Host={Host}, Port={Port}, Username={Username}, From={From}, Recipient={Recipient}, Ssl={Ssl}, StatusCode={StatusCode}",
+                _options.Host, _options.Port, _options.Username, _options.From, email, _options.EnableSsl, ex.StatusCode);
+            throw new InvalidOperationException("Não foi possível enviar o e-mail de confirmação. O serviço de e-mail está temporariamente indisponível.", ex);
+        }
+        catch (Exception ex) when (ex is FormatException or ArgumentException)
+        {
+            logger.LogError(ex, "FinanceFlow SMTP configuration/address error for recipient {Recipient}", email);
+            throw new InvalidOperationException("A configuração do serviço de e-mail é inválida.", ex);
+        }
     }
 
     private void ValidateConfiguration()
     {
         if (string.IsNullOrWhiteSpace(_options.Host) ||
+            _options.Port <= 0 ||
             string.IsNullOrWhiteSpace(_options.Username) ||
             string.IsNullOrWhiteSpace(_options.Password) ||
             string.IsNullOrWhiteSpace(_options.From))
         {
+            logger.LogError(
+                "SMTP configuration is incomplete. HostConfigured={HostConfigured}, Port={Port}, UsernameConfigured={UsernameConfigured}, PasswordConfigured={PasswordConfigured}, FromConfigured={FromConfigured}",
+                !string.IsNullOrWhiteSpace(_options.Host), _options.Port,
+                !string.IsNullOrWhiteSpace(_options.Username), !string.IsNullOrWhiteSpace(_options.Password),
+                !string.IsNullOrWhiteSpace(_options.From));
             throw new InvalidOperationException("SMTP não está configurado. Configure Smtp__Host, Smtp__Port, Smtp__Username, Smtp__Password e Smtp__From.");
         }
     }
