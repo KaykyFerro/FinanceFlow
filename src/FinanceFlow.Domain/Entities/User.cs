@@ -20,6 +20,7 @@ public sealed class User
     }
 
     public void ConfirmEmail() => EmailConfirmed = true;
+    public void RequireEmailConfirmation() => EmailConfirmed = false;
     public void RegisterLogin() => LastLoginAtUtc = DateTime.UtcNow;
     public void ChangePasswordHash(string passwordHash) => PasswordHash = passwordHash;
     public void UpdateProfile(string name, string email)
