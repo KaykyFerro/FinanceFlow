@@ -22,8 +22,12 @@ var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<Jw
 if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey) || Encoding.UTF8.GetByteCount(jwtOptions.SecretKey) < 32)
     throw new InvalidOperationException("Jwt:SecretKey deve ter pelo menos 32 bytes. Configure via variável de ambiente ou User Secrets.");
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException("ConnectionStrings:DefaultConnection não está configurada.");
+
 builder.Services.AddDbContext<FinanceFlowDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
 
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<TokenService>();
@@ -59,16 +63,17 @@ builder.Services.AddCors(options => options.AddPolicy("Web", policy =>
 
 var app = builder.Build();
 
-// Always expose a lightweight health endpoint without depending on controller discovery or the database.
+// Lightweight public health endpoint that does not depend on controller discovery or the database.
 app.MapGet("/api/health", () => Results.Ok(new
 {
     status = "ok",
     service = "FinanceFlow.Api"
 }));
 
-if (app.Environment.IsDevelopment())
+// Create the initial schema automatically for the first hosted deployment.
+// This is intentionally temporary for the MVP; proper EF migrations will replace it later.
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<FinanceFlowDbContext>();
     await db.Database.EnsureCreatedAsync();
 }
