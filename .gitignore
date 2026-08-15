@@ -1,0 +1,17 @@
+# .NET
+**/bin/
+**/obj/
+.vs/
+.idea/
+.vscode/
+
+# Secrets
+.env
+.env.*
+appsettings.Local.json
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
