@@ -24,19 +24,15 @@ public sealed class AuthController(
     {
         if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Email) || request.Password.Length < 8)
             return BadRequest(new { message = "Nome, e-mail e uma senha de pelo menos 8 caracteres são obrigatórios." });
-
         var email = request.Email.Trim().ToLowerInvariant();
         if (await db.Users.AnyAsync(x => x.Email == email, cancellationToken))
             return Conflict(new { message = "Este e-mail já está cadastrado." });
-
         var user = new User(request.Name, email, string.Empty);
         user.ChangePasswordHash(passwordHasher.HashPassword(user, request.Password));
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
-
         var token = await authTokens.CreateAsync(user.Id, AuthTokenType.EmailVerification, TimeSpan.FromHours(24), cancellationToken);
         await emailSender.SendVerificationAsync(user.Email, token, cancellationToken);
-
         return StatusCode(StatusCodes.Status201Created, new { message = "Cadastro criado. Verifique seu e-mail para ativar a conta.", user = TokenService.ToResponse(user) });
     }
 
@@ -47,10 +43,8 @@ public sealed class AuthController(
         var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email, cancellationToken);
         if (user is null || passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
             return Unauthorized(new { message = "E-mail ou senha inválidos." });
-
         if (!user.EmailConfirmed)
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "Confirme seu e-mail antes de entrar." });
-
         user.RegisterLogin();
         await db.SaveChangesAsync(cancellationToken);
         return Ok(await tokens.IssueAsync(user, cancellationToken));
@@ -75,7 +69,6 @@ public sealed class AuthController(
     {
         var token = await authTokens.ConsumeAsync(request.Token, AuthTokenType.EmailVerification, cancellationToken);
         if (token is null) return BadRequest(new { message = "Token de verificação inválido ou expirado." });
-
         var user = await db.Users.FindAsync([token.UserId], cancellationToken);
         if (user is null) return BadRequest(new { message = "Usuário não encontrado." });
         user.ConfirmEmail();
@@ -112,12 +105,9 @@ public sealed class AuthController(
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest request, CancellationToken cancellationToken)
     {
-        if (request.NewPassword.Length < 8)
-            return BadRequest(new { message = "A nova senha deve ter pelo menos 8 caracteres." });
-
+        if (request.NewPassword.Length < 8) return BadRequest(new { message = "A nova senha deve ter pelo menos 8 caracteres." });
         var token = await authTokens.ConsumeAsync(request.Token, AuthTokenType.PasswordReset, cancellationToken);
         if (token is null) return BadRequest(new { message = "Token de recuperação inválido ou expirado." });
-
         var user = await db.Users.FindAsync([token.UserId], cancellationToken);
         if (user is null) return BadRequest(new { message = "Usuário não encontrado." });
         user.ChangePasswordHash(passwordHasher.HashPassword(user, request.NewPassword));
@@ -129,8 +119,7 @@ public sealed class AuthController(
     [HttpGet("me")]
     public async Task<IActionResult> Me(CancellationToken cancellationToken)
     {
-        var userId = GetUserId();
-        var user = await db.Users.FindAsync([userId], cancellationToken);
+        var user = await db.Users.FindAsync([GetUserId()], cancellationToken);
         return user is null ? Unauthorized() : Ok(TokenService.ToResponse(user));
     }
 
@@ -141,12 +130,17 @@ public sealed class AuthController(
         var userId = GetUserId();
         var user = await db.Users.FindAsync([userId], cancellationToken);
         if (user is null) return Unauthorized();
-
         var email = request.Email.Trim().ToLowerInvariant();
         if (await db.Users.AnyAsync(x => x.Email == email && x.Id != userId, cancellationToken))
             return Conflict(new { message = "Este e-mail já está em uso." });
-
-        user.UpdateProfile(request.Name, request.Email);
+        var emailChanged = !string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase);
+        user.UpdateProfile(request.Name, email);
+        if (emailChanged)
+        {
+            user.RequireEmailConfirmation();
+            var token = await authTokens.CreateAsync(user.Id, AuthTokenType.EmailVerification, TimeSpan.FromHours(24), cancellationToken);
+            await emailSender.SendVerificationAsync(user.Email, token, cancellationToken);
+        }
         await db.SaveChangesAsync(cancellationToken);
         return Ok(TokenService.ToResponse(user));
     }
