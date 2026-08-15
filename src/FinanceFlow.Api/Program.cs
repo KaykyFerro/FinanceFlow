@@ -70,13 +70,6 @@ builder.Services.AddCors(options => options.AddPolicy("Web", policy =>
 
 var app = builder.Build();
 
-// Lightweight public health endpoint that does not depend on controller discovery or the database.
-app.MapGet("/api/health", () => Results.Ok(new
-{
-    status = "ok",
-    service = "FinanceFlow.Api"
-}));
-
 // Keep startup resilient while the database is coming online. Once the connection works,
 // EnsureCreatedAsync creates the MVP schema automatically. A proper EF migration pipeline
 // will replace this later.
