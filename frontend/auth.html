@@ -39,12 +39,14 @@
   <div class="small">Sua senha nunca é armazenada em texto puro.</div>
 </main>
 <script>
+// Durante o desenvolvimento local, rode a API em http://localhost:5000.
+// No ambiente publicado, defina window.FINANCEFLOW_API_URL antes deste script.
 const API_URL = window.FINANCEFLOW_API_URL || 'http://localhost:5000/api';
 const $=id=>document.getElementById(id); const msg=$('message');
 function message(text,error=false){msg.textContent=text;msg.className='message'+(error?' error':'');msg.style.display='block'}
 function show(mode){$('loginForm').classList.toggle('hidden',mode!=='login');$('registerForm').classList.toggle('hidden',mode!=='register');$('forgotForm').classList.toggle('hidden',mode!=='forgot');$('loginTab').classList.toggle('active',mode==='login');$('registerTab').classList.toggle('active',mode==='register');msg.style.display='none'}
 $('loginTab').onclick=()=>show('login');$('registerTab').onclick=()=>show('register');$('forgotLink').onclick=()=>show('forgot');$('backLogin').onclick=()=>show('login');
-async function api(path,options={}){const res=await fetch(API_URL+path,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||'Não foi possível concluir a operação.');return data}
+async function api(path,options={}){try{const res=await fetch(API_URL+path,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||`A API respondeu com erro (${res.status}).`);return data}catch(err){if(err instanceof TypeError)throw new Error('Não foi possível conectar ao servidor. A API do FinanceFlow ainda não está publicada ou está offline.');throw err}}
 $('loginForm').onsubmit=async e=>{e.preventDefault();try{const data=await api('/auth/login',{method:'POST',body:JSON.stringify({email:$('loginEmail').value,password:$('loginPassword').value})});localStorage.setItem('financeflow.accessToken',data.accessToken);localStorage.setItem('financeflow.refreshToken',data.refreshToken);window.location.href='../index.html'}catch(err){message(err.message,true)}};
 $('registerForm').onsubmit=async e=>{e.preventDefault();if($('registerPassword').value!==$('registerPasswordConfirm').value)return message('As senhas não conferem.',true);try{await api('/auth/register',{method:'POST',body:JSON.stringify({name:$('registerName').value,email:$('registerEmail').value,password:$('registerPassword').value})});show('login');message('Cadastro criado. Verifique seu e-mail antes de entrar.')}catch(err){message(err.message,true)}};
 $('forgotForm').onsubmit=async e=>{e.preventDefault();try{const data=await api('/auth/forgot-password',{method:'POST',body:JSON.stringify({email:$('forgotEmail').value})});message(data.message)}catch(err){message(err.message,true)}};
