@@ -37,11 +37,7 @@ public sealed class AuthController(
         var token = await authTokens.CreateAsync(user.Id, AuthTokenType.EmailVerification, TimeSpan.FromHours(24), cancellationToken);
         await emailSender.SendVerificationAsync(user.Email, token, cancellationToken);
 
-        return StatusCode(StatusCodes.Status201Created, new
-        {
-            message = "Cadastro criado. Verifique seu e-mail para ativar a conta.",
-            user = TokenService.ToResponse(user)
-        });
+        return StatusCode(StatusCodes.Status201Created, new { message = "Cadastro criado. Verifique seu e-mail para ativar a conta.", user = TokenService.ToResponse(user) });
     }
 
     [HttpPost("login")]
@@ -63,10 +59,8 @@ public sealed class AuthController(
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(RefreshRequest request, CancellationToken cancellationToken)
     {
-        var result = await tokens.RotateAsync(request.RefreshToken, cancellationToken);
-        if (result is null) return Unauthorized(new { message = "Refresh token inválido ou expirado." });
-        var response = await tokens.IssueAsync(result.Value.User, cancellationToken);
-        return Ok(response);
+        var response = await tokens.RotateAsync(request.RefreshToken, cancellationToken);
+        return response is null ? Unauthorized(new { message = "Refresh token inválido ou expirado." }) : Ok(response);
     }
 
     [HttpPost("logout")]
@@ -90,7 +84,7 @@ public sealed class AuthController(
     }
 
     [HttpPost("resend-verification")]
-    public async Task<IActionResult> ResendVerification(RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> ResendVerification(ForgotPasswordRequest request, CancellationToken cancellationToken)
     {
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email, cancellationToken);
@@ -112,7 +106,6 @@ public sealed class AuthController(
             var token = await authTokens.CreateAsync(user.Id, AuthTokenType.PasswordReset, TimeSpan.FromMinutes(30), cancellationToken);
             await emailSender.SendPasswordResetAsync(user.Email, token, cancellationToken);
         }
-
         return Ok(new { message = "Se o e-mail estiver cadastrado, você receberá instruções para redefinir a senha." });
     }
 
@@ -153,13 +146,7 @@ public sealed class AuthController(
         if (await db.Users.AnyAsync(x => x.Email == email && x.Id != userId, cancellationToken))
             return Conflict(new { message = "Este e-mail já está em uso." });
 
-        var emailChanged = !string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase);
-        user.UpdateProfile(request.Name, email);
-        if (emailChanged)
-        {
-            // Requer nova confirmação quando o endereço muda.
-            // A entidade mantém a confirmação anterior somente até a camada de domínio ser estendida.
-        }
+        user.UpdateProfile(request.Name, request.Email);
         await db.SaveChangesAsync(cancellationToken);
         return Ok(TokenService.ToResponse(user));
     }
