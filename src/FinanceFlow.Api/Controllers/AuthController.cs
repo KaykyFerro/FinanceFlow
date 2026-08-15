@@ -32,7 +32,14 @@ public sealed class AuthController(
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
         var token = await authTokens.CreateAsync(user.Id, AuthTokenType.EmailVerification, TimeSpan.FromHours(24), cancellationToken);
-        await emailSender.SendVerificationAsync(user.Email, token, cancellationToken);
+        try
+        {
+            await emailSender.SendVerificationAsync(user.Email, token, cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Sua conta foi criada, mas não foi possível enviar o e-mail de confirmação. Use o botão de reenviar confirmação." });
+        }
         return StatusCode(StatusCodes.Status201Created, new { message = "Cadastro criado. Verifique seu e-mail para ativar a conta.", user = TokenService.ToResponse(user) });
     }
 
@@ -84,7 +91,14 @@ public sealed class AuthController(
         if (user is not null && !user.EmailConfirmed)
         {
             var token = await authTokens.CreateAsync(user.Id, AuthTokenType.EmailVerification, TimeSpan.FromHours(24), cancellationToken);
-            await emailSender.SendVerificationAsync(user.Email, token, cancellationToken);
+            try
+            {
+                await emailSender.SendVerificationAsync(user.Email, token, cancellationToken);
+            }
+            catch (InvalidOperationException)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Não foi possível enviar o e-mail agora. Verifique a configuração SMTP no servidor e tente novamente." });
+            }
         }
         return Ok(new { message = "Se o cadastro existir e ainda não estiver confirmado, uma nova verificação foi enviada." });
     }
