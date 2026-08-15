@@ -10,8 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Railway provides PORT at runtime. Bind ASP.NET Core to 0.0.0.0:$PORT
-// so the service can receive public traffic through Railway's proxy.
+// Railway provides PORT at runtime. Bind ASP.NET Core to 0.0.0.0:$PORT.
 var railwayPort = Environment.GetEnvironmentVariable("PORT");
 if (int.TryParse(railwayPort, out var port) && port > 0)
 {
@@ -59,6 +58,13 @@ builder.Services.AddCors(options => options.AddPolicy("Web", policy =>
         .AllowAnyMethod()));
 
 var app = builder.Build();
+
+// Always expose a lightweight health endpoint without depending on controller discovery or the database.
+app.MapGet("/api/health", () => Results.Ok(new
+{
+    status = "ok",
+    service = "FinanceFlow.Api"
+}));
 
 if (app.Environment.IsDevelopment())
 {
