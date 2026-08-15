@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,9 +23,15 @@ var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<Jw
 if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey) || Encoding.UTF8.GetByteCount(jwtOptions.SecretKey) < 32)
     throw new InvalidOperationException("Jwt:SecretKey deve ter pelo menos 32 bytes. Configure via variável de ambiente ou User Secrets.");
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// Railway exposes the database through DATABASE_URL. Prefer it over the local appsettings value.
+// DATABASE_URL is normally a postgres:// URI, while Npgsql expects a keyword=value connection string.
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+var connectionString = !string.IsNullOrWhiteSpace(databaseUrl)
+    ? ToNpgsqlConnectionString(databaseUrl)
+    : builder.Configuration.GetConnectionString("DefaultConnection");
+
 if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException("ConnectionStrings:DefaultConnection não está configurada.");
+    throw new InvalidOperationException("DATABASE_URL ou ConnectionStrings:DefaultConnection não está configurada.");
 
 builder.Services.AddDbContext<FinanceFlowDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -70,12 +77,18 @@ app.MapGet("/api/health", () => Results.Ok(new
     service = "FinanceFlow.Api"
 }));
 
-// Create the initial schema automatically for the first hosted deployment.
-// This is intentionally temporary for the MVP; proper EF migrations will replace it later.
-using (var scope = app.Services.CreateScope())
+// Keep startup resilient while the database is coming online. Once the connection works,
+// EnsureCreatedAsync creates the MVP schema automatically. A proper EF migration pipeline
+// will replace this later.
+try
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<FinanceFlowDbContext>();
     await db.Database.EnsureCreatedAsync();
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "Database initialization failed. The API will remain online; database-backed endpoints may be unavailable.");
 }
 
 // Railway terminates HTTPS at its edge. Locally, keep the normal ASP.NET HTTPS setup.
@@ -90,3 +103,26 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+static string ToNpgsqlConnectionString(string value)
+{
+    if (!value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) &&
+        !value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+    {
+        return value;
+    }
+
+    var uri = new Uri(value);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.IsDefaultPort ? 5432 : uri.Port,
+        Database = uri.AbsolutePath.TrimStart('/'),
+        Username = Uri.UnescapeDataString(userInfo[0]),
+        Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
+        SslMode = SslMode.Require
+    };
+
+    return builder.ConnectionString;
+}
