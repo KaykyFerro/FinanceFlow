@@ -2,7 +2,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using FinanceFlow.Api.Authentication;
 using FinanceFlow.Domain.Entities;
 using FinanceFlow.Infrastructure.Data;
 using FinanceFlow.Infrastructure.Entities;
@@ -27,17 +26,11 @@ public sealed class TokenService(FinanceFlowDbContext db, IOptions<JwtOptions> o
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(ClaimTypes.Name, user.Name)
+            new Claim(ClaimTypes.Name, user.Name),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
         };
 
-        var jwt = new JwtSecurityToken(
-            _options.Issuer,
-            _options.Audience,
-            claims,
-            now,
-            expires,
-            credentials);
-
+        var jwt = new JwtSecurityToken(_options.Issuer, _options.Audience, claims, now, expires, credentials);
         var accessToken = new JwtSecurityTokenHandler().WriteToken(jwt);
         var rawRefreshToken = CreateRandomToken();
 
@@ -52,18 +45,17 @@ public sealed class TokenService(FinanceFlowDbContext db, IOptions<JwtOptions> o
         return new AuthResponse(accessToken, rawRefreshToken, expires, ToResponse(user));
     }
 
-    public async Task<(User User, string NewRefreshToken)?> RotateAsync(string refreshToken, CancellationToken cancellationToken)
+    public async Task<AuthResponse?> RotateAsync(string refreshToken, CancellationToken cancellationToken)
     {
         var hash = HashToken(refreshToken);
         var stored = await db.RefreshTokens.SingleOrDefaultAsync(x => x.TokenHash == hash, cancellationToken);
         if (stored is null || !stored.IsActive) return null;
 
-        stored.RevokedAtUtc = DateTime.UtcNow;
         var user = await db.Users.SingleOrDefaultAsync(x => x.Id == stored.UserId, cancellationToken);
         if (user is null) return null;
 
-        var response = await IssueAsync(user, cancellationToken);
-        return (user, response.RefreshToken);
+        stored.RevokedAtUtc = DateTime.UtcNow;
+        return await IssueAsync(user, cancellationToken);
     }
 
     public async Task RevokeAsync(string refreshToken, CancellationToken cancellationToken)
@@ -76,6 +68,5 @@ public sealed class TokenService(FinanceFlowDbContext db, IOptions<JwtOptions> o
 
     public static string CreateRandomToken() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
     public static string HashToken(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
-
     public static UserResponse ToResponse(User user) => new(user.Id, user.Name, user.Email, user.EmailConfirmed, user.CreatedAtUtc, user.LastLoginAtUtc);
 }
