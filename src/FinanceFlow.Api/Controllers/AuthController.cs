@@ -97,7 +97,7 @@ public sealed class AuthController(
             }
             catch (InvalidOperationException)
             {
-                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Não foi possível enviar o e-mail agora. Verifique a configuração SMTP no servidor e tente novamente." });
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Não foi possível enviar o e-mail agora. Verifique a configuração do serviço de e-mail e tente novamente." });
             }
         }
         return Ok(new { message = "Se o cadastro existir e ainda não estiver confirmado, uma nova verificação foi enviada." });
