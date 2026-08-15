@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using FinanceFlow.Api.Authentication;
 using FinanceFlow.Domain.Entities;
@@ -8,6 +9,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Railway provides PORT at runtime. Bind ASP.NET Core to 0.0.0.0:$PORT
+// so the service can receive public traffic through Railway's proxy.
+var railwayPort = Environment.GetEnvironmentVariable("PORT");
+if (int.TryParse(railwayPort, out var port) && port > 0)
+{
+    builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Any, port));
+}
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
@@ -58,7 +67,12 @@ if (app.Environment.IsDevelopment())
     await db.Database.EnsureCreatedAsync();
 }
 
-app.UseHttpsRedirection();
+// Railway terminates HTTPS at its edge. Locally, keep the normal ASP.NET HTTPS setup.
+if (string.IsNullOrWhiteSpace(railwayPort))
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors("Web");
 app.UseAuthentication();
 app.UseAuthorization();
