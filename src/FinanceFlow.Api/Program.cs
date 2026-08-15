@@ -28,22 +28,36 @@ builder.Services.AddDbContext<FinanceFlowDbContext>(options => options.UseNpgsql
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<AuthTokenService>();
-builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
-builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.Configure<ResendOptions>(builder.Configuration.GetSection(ResendOptions.SectionName));
+builder.Services.AddHttpClient("Resend", client =>
+{
+    client.BaseAddress = new Uri("https://api.resend.com/");
+    client.Timeout = TimeSpan.FromSeconds(20);
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+});
+builder.Services.AddSingleton<IEmailSender, ResendEmailSender>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true, ValidateAudience = true, ValidateLifetime = true, ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtOptions.Issuer, ValidAudience = jwtOptions.Audience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)), ClockSkew = TimeSpan.FromSeconds(30)
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtOptions.Issuer,
+        ValidAudience = jwtOptions.Audience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
+        ClockSkew = TimeSpan.FromSeconds(30)
     };
 });
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
-builder.Services.AddCors(options => options.AddPolicy("Web", policy => policy.WithOrigins("https://kaykyferro.github.io", "http://localhost:5173", "http://localhost:3000").AllowAnyHeader().AllowAnyMethod()));
+builder.Services.AddCors(options => options.AddPolicy("Web", policy => policy
+    .WithOrigins("https://kaykyferro.github.io", "http://localhost:5173", "http://localhost:3000")
+    .AllowAnyHeader()
+    .AllowAnyMethod()));
 
 var app = builder.Build();
 try
@@ -71,8 +85,11 @@ static string ToNpgsqlConnectionString(string value)
     var userInfo = uri.UserInfo.Split(':', 2);
     var cs = new NpgsqlConnectionStringBuilder
     {
-        Host = uri.Host, Port = uri.IsDefaultPort ? 5432 : uri.Port, Database = uri.AbsolutePath.TrimStart('/'),
-        Username = Uri.UnescapeDataString(userInfo[0]), Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
+        Host = uri.Host,
+        Port = uri.IsDefaultPort ? 5432 : uri.Port,
+        Database = uri.AbsolutePath.TrimStart('/'),
+        Username = Uri.UnescapeDataString(userInfo[0]),
+        Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
         SslMode = SslMode.Require
     };
     return cs.ConnectionString;
