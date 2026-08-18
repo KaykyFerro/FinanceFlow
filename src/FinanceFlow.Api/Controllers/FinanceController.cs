@@ -21,7 +21,7 @@ public sealed class FinanceController(FinanceFlowDbContext db) : ControllerBase
         await EnsureDefaults(userId, ct);
         var start = new DateTime(y, m, 1, 0, 0, 0, DateTimeKind.Utc); var end = start.AddMonths(1);
         var tx = await db.Transactions.AsNoTracking().Where(x => x.UserId == userId && x.Date >= start && x.Date < end && x.Confirmed).OrderByDescending(x => x.Date).ToListAsync(ct);
-        var allTx = await db.Transactions.AsNoTracking().Where(x => x.UserId == userId && x.Confirmed).ToListAsync(ct);
+        var allTx = await db.Transactions.AsNoTracking().Where(x => x.UserId == userId && x.Confirmed).OrderByDescending(x => x.Date).ToListAsync(ct);
         var accounts = await db.Accounts.AsNoTracking().Where(x => x.UserId == userId).OrderBy(x => x.Name).ToListAsync(ct);
         var categories = await db.Categories.AsNoTracking().Where(x => x.UserId == userId).OrderBy(x => x.Name).ToListAsync(ct);
         var budgets = await db.Budgets.AsNoTracking().Where(x => x.UserId == userId && x.Month == start).ToListAsync(ct);
@@ -32,9 +32,10 @@ public sealed class FinanceController(FinanceFlowDbContext db) : ControllerBase
         var accountRows = accounts.Select(a => new { a.Id, a.Institution, a.Name, Type = a.Type.ToString(), Balance = a.Balance + allTx.Where(t => t.AccountId == a.Id).Sum(t => t.Type == TransactionType.Income ? t.Amount : -t.Amount) });
         var categoryRows = categories.Select(c => new { c.Id, c.Name, c.Color, c.IsIncome });
         var txRows = tx.Select(t => new { t.Id, t.AccountId, t.CategoryId, t.Description, t.Amount, Type = t.Type.ToString(), t.Date, t.Notes, t.Confirmed });
+        var allTxRows = allTx.Select(t => new { t.Id, t.AccountId, t.CategoryId, t.Description, t.Amount, Type = t.Type.ToString(), t.Date, t.Notes, t.Confirmed });
         var budgetRows = budgets.Select(b => new { b.Id, b.CategoryId, b.Month, b.LimitAmount, Spent = tx.Where(t => t.CategoryId == b.CategoryId && t.Type == TransactionType.Expense).Sum(t => t.Amount) });
         var byDay = tx.GroupBy(t => t.Date.Day).OrderBy(g => g.Key).Select(g => new { Day = g.Key, Income = g.Where(x => x.Type == TransactionType.Income).Sum(x => x.Amount), Expense = g.Where(x => x.Type == TransactionType.Expense).Sum(x => x.Amount) });
-        return Ok(new { year = y, month = m, income, expense, patrimonio, investment, accounts = accountRows, categories = categoryRows, transactions = txRows, budgets = budgetRows, byDay });
+        return Ok(new { year = y, month = m, income, expense, patrimonio, investment, accounts = accountRows, categories = categoryRows, transactions = txRows, allTransactions = allTxRows, budgets = budgetRows, byDay });
     }
 
     [HttpPost("transactions")]
