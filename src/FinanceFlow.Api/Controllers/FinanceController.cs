@@ -15,27 +15,168 @@ public sealed class FinanceController(FinanceFlowDbContext db) : ControllerBase
     [HttpGet("summary")]
     public async Task<IActionResult> Summary(int? year, int? month, CancellationToken ct)
     {
-        var userId = GetUserId(); if (userId == Guid.Empty) return Unauthorized();
-        var now = DateTime.UtcNow; var y = year ?? now.Year; var m = month ?? now.Month;
+        var userId = GetUserId();
+        if (userId == Guid.Empty) return Unauthorized();
+
+        var now = DateTime.UtcNow;
+        var y = year ?? now.Year;
+        var m = month ?? now.Month;
+
         if (m is < 1 or > 12) return BadRequest(new { message = "Mês inválido." });
+
         await EnsureDefaults(userId, ct);
-        var start = new DateTime(y, m, 1, 0, 0, 0, DateTimeKind.Utc); var end = start.AddMonths(1);
-        var tx = await db.Transactions.AsNoTracking().Where(x => x.UserId == userId && x.Date >= start && x.Date < end && x.Confirmed).OrderByDescending(x => x.Date).ToListAsync(ct);
-        var allTx = await db.Transactions.AsNoTracking().Where(x => x.UserId == userId && x.Confirmed).OrderByDescending(x => x.Date).ToListAsync(ct);
-        var accounts = await db.Accounts.AsNoTracking().Where(x => x.UserId == userId).OrderBy(x => x.Name).ToListAsync(ct);
-        var categories = await db.Categories.AsNoTracking().Where(x => x.UserId == userId).OrderBy(x => x.Name).ToListAsync(ct);
-        var budgets = await db.Budgets.AsNoTracking().Where(x => x.UserId == userId && x.Month == start).ToListAsync(ct);
-        var income = tx.Where(x => x.Type == TransactionType.Income).Sum(x => x.Amount);
-        var expense = tx.Where(x => x.Type == TransactionType.Expense).Sum(x => x.Amount);
-        var investment = accounts.Where(x => x.Type == AccountType.Investment).Sum(x => x.Balance);
-        var patrimonio = accounts.Sum(x => x.Balance) + allTx.Where(x => x.Type == TransactionType.Income).Sum(x => x.Amount) - allTx.Where(x => x.Type == TransactionType.Expense).Sum(x => x.Amount);
-        var accountRows = accounts.Select(a => new { a.Id, a.Institution, a.Name, Type = a.Type.ToString(), Balance = a.Balance + allTx.Where(t => t.AccountId == a.Id).Sum(t => t.Type == TransactionType.Income ? t.Amount : -t.Amount) });
-        var categoryRows = categories.Select(c => new { c.Id, c.Name, c.Color, c.IsIncome });
-        var txRows = tx.Select(t => new { t.Id, t.AccountId, t.CategoryId, t.Description, t.Amount, Type = t.Type.ToString(), t.Date, t.Notes, t.Confirmed });
-        var allTxRows = allTx.Select(t => new { t.Id, t.AccountId, t.CategoryId, t.Description, t.Amount, Type = t.Type.ToString(), t.Date, t.Notes, t.Confirmed });
-        var budgetRows = budgets.Select(b => new { b.Id, b.CategoryId, b.Month, b.LimitAmount, Spent = tx.Where(t => t.CategoryId == b.CategoryId && t.Type == TransactionType.Expense).Sum(t => t.Amount) });
-        var byDay = tx.GroupBy(t => t.Date.Day).OrderBy(g => g.Key).Select(g => new { Day = g.Key, Income = g.Where(x => x.Type == TransactionType.Income).Sum(x => x.Amount), Expense = g.Where(x => x.Type == TransactionType.Expense).Sum(x => x.Amount) });
-        return Ok(new { year = y, month = m, income, expense, patrimonio, investment, accounts = accountRows, categories = categoryRows, transactions = txRows, allTransactions = allTxRows, budgets = budgetRows, byDay });
+
+        var start = new DateTime(y, m, 1, 0, 0, 0, DateTimeKind.Utc);
+        var end = start.AddMonths(1);
+
+        var tx = await db.Transactions.AsNoTracking()
+            .Where(x => x.UserId == userId && x.Date >= start && x.Date < end && x.Confirmed)
+            .OrderByDescending(x => x.Date)
+            .ToListAsync(ct);
+
+        var allTx = await db.Transactions.AsNoTracking()
+            .Where(x => x.UserId == userId && x.Confirmed)
+            .OrderByDescending(x => x.Date)
+            .ToListAsync(ct);
+
+        var accounts = await db.Accounts.AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .OrderBy(x => x.Name)
+            .ToListAsync(ct);
+
+        var categories = await db.Categories.AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .OrderBy(x => x.Name)
+            .ToListAsync(ct);
+
+        var budgets = await db.Budgets.AsNoTracking()
+            .Where(x => x.UserId == userId && x.Month == start)
+            .ToListAsync(ct);
+
+        // Investimentos são patrimônio, não fluxo de caixa normal.
+        // Uma transação vinculada a uma conta de investimento não deve virar
+        // "Entrada" ou "Saída" comum e também não deve ser somada novamente
+        // ao saldo da conta de investimento.
+        var investmentAccountIds = accounts
+            .Where(x => x.Type == AccountType.Investment)
+            .Select(x => x.Id)
+            .ToHashSet();
+
+        var investmentCategoryIds = categories
+            .Where(x => string.Equals(x.Name.Trim(), "Investimentos", StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.Id)
+            .ToHashSet();
+
+        bool IsInvestmentTransaction(Transaction t) =>
+            investmentAccountIds.Contains(t.AccountId) ||
+            (t.CategoryId.HasValue && investmentCategoryIds.Contains(t.CategoryId.Value));
+
+        var regularTx = tx.Where(t => !IsInvestmentTransaction(t)).ToList();
+        var allRegularTx = allTx.Where(t => !IsInvestmentTransaction(t)).ToList();
+
+        var income = regularTx
+            .Where(x => x.Type == TransactionType.Income)
+            .Sum(x => x.Amount);
+
+        var expense = regularTx
+            .Where(x => x.Type == TransactionType.Expense)
+            .Sum(x => x.Amount);
+
+        // Balance de uma conta de investimento é tratado como o saldo do próprio
+        // investimento. Não somamos suas transações aqui para evitar duplicidade.
+        var investment = accounts
+            .Where(x => x.Type == AccountType.Investment)
+            .Sum(x => x.Balance);
+
+        // O quadro "Contas e Saldos" mostra somente dinheiro disponível.
+        // Contas de investimento ficam separadas do saldo operacional.
+        var accountRows = accounts
+            .Where(a => a.Type != AccountType.Investment)
+            .Select(a => new
+            {
+                a.Id,
+                a.Institution,
+                a.Name,
+                Type = a.Type.ToString(),
+                Balance = a.Balance + allRegularTx
+                    .Where(t => t.AccountId == a.Id)
+                    .Sum(t => t.Type == TransactionType.Income ? t.Amount : -t.Amount)
+            });
+
+        var cashBalance = accountRows.Sum(x => x.Balance);
+        var patrimonio = cashBalance + investment;
+
+        var categoryRows = categories.Select(c => new
+        {
+            c.Id,
+            c.Name,
+            c.Color,
+            c.IsIncome
+        });
+
+        // O histórico continua mostrando TODAS as transações, inclusive investimentos.
+        var txRows = tx.Select(t => new
+        {
+            t.Id,
+            t.AccountId,
+            t.CategoryId,
+            t.Description,
+            t.Amount,
+            Type = t.Type.ToString(),
+            t.Date,
+            t.Notes,
+            t.Confirmed
+        });
+
+        var allTxRows = allTx.Select(t => new
+        {
+            t.Id,
+            t.AccountId,
+            t.CategoryId,
+            t.Description,
+            t.Amount,
+            Type = t.Type.ToString(),
+            t.Date,
+            t.Notes,
+            t.Confirmed
+        });
+
+        var budgetRows = budgets.Select(b => new
+        {
+            b.Id,
+            b.CategoryId,
+            b.Month,
+            b.LimitAmount,
+            Spent = regularTx
+                .Where(t => t.CategoryId == b.CategoryId && t.Type == TransactionType.Expense)
+                .Sum(t => t.Amount)
+        });
+
+        var byDay = regularTx
+            .GroupBy(t => t.Date.Day)
+            .OrderBy(g => g.Key)
+            .Select(g => new
+            {
+                Day = g.Key,
+                Income = g.Where(x => x.Type == TransactionType.Income).Sum(x => x.Amount),
+                Expense = g.Where(x => x.Type == TransactionType.Expense).Sum(x => x.Amount)
+            });
+
+        return Ok(new
+        {
+            year = y,
+            month = m,
+            income,
+            expense,
+            patrimonio,
+            investment,
+            accounts = accountRows,
+            categories = categoryRows,
+            transactions = txRows,
+            allTransactions = allTxRows,
+            budgets = budgetRows,
+            byDay
+        });
     }
 
     [HttpPost("transactions")]
