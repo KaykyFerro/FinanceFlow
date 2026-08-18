@@ -2,7 +2,7 @@
 
 Sistema de gestão financeira pessoal desenvolvido para centralizar receitas, despesas, contas, investimentos e análises financeiras em uma única aplicação.
 
-> **Status atual:** 🚧 Em desenvolvimento ativo. O projeto já possui uma interface web funcional, estrutura de API/backend, PostgreSQL, autenticação em evolução, controle de transações, relatórios, identidade visual própria e uma versão Android baseada em WebView em processo de evolução.
+> **Status atual:** 🚧 Em desenvolvimento ativo. O projeto já possui uma interface web funcional, estrutura de API/backend, PostgreSQL, autenticação em evolução, controle de transações, relatórios, identidade visual própria e uma versão Android baseada em WebView com build automatizado.
 
 ## 🌐 Acesso
 
@@ -116,22 +116,31 @@ O FinanceFlow recebeu uma identidade visual própria, incluindo:
 - Nome **FinanceFlow** integrado à identidade visual.
 - Interface com foco em tons escuros, verde para entradas e azul para indicadores financeiros.
 
-### 📱 Aplicativo Android
+### 📱 Aplicativo Android WebView
 
-Foi criada uma versão Android baseada em WebView para carregar a aplicação web do FinanceFlow.
+Foi criada e documentada uma versão Android baseada em WebView para carregar a aplicação web do FinanceFlow.
 
-Características do build atual:
+Características:
 
 - Nome do aplicativo: **FinanceFlow**.
-- Ícone baseado na identidade visual do projeto.
-- WebView apontando para a aplicação web.
-- JavaScript habilitado.
-- Armazenamento web habilitado.
-- Suporte à navegação de retorno do Android.
+- Package: `com.kaykyferro.financeflow`.
+- WebView apontando para a tela de autenticação publicada.
+- JavaScript e DOM Storage habilitados.
+- Navegação de retorno do Android.
+- HTTPS para acesso à aplicação web.
 - Build automatizado pelo GitHub Actions.
-- APK gerado com sucesso para testes.
+- APK de Release publicado como artifact `FinanceFlow-APK`.
+- Documentação específica em [`docs/android-webview.md`](docs/android-webview.md).
 
-O artefato gerado pelo workflow foi denominado **FinanceFlow-APK**.
+### 📥 Download do APK Android
+
+O APK é gerado automaticamente pelo GitHub Actions. Para baixar o build mais recente:
+
+**[📱 Abrir builds do Android e baixar o APK](https://github.com/KaykyFerro/FinanceFlow/actions/workflows/android.yml)**
+
+Na execução mais recente concluída com sucesso, abra **Artifacts → FinanceFlow-APK** e baixe o ZIP contendo `FinanceFlow.apk`.
+
+> Os artifacts do GitHub Actions são temporários e o workflow atual mantém cada APK por 30 dias. Para distribuição permanente, o próximo passo recomendado é publicar o APK em uma Release do GitHub.
 
 > A versão Android/WebView ainda deve ser considerada uma versão de teste enquanto o projeto mobile não possuir uma implementação nativa definitiva.
 
@@ -145,6 +154,8 @@ O projeto está organizado para separar responsabilidades entre domínio, infrae
 FinanceFlow/
 ├── database/
 ├── docs/
+│   ├── architecture.md
+│   └── android-webview.md
 ├── frontend/
 │   ├── assets/
 │   ├── auth.html
@@ -154,6 +165,8 @@ FinanceFlow/
 │   ├── FinanceFlow.Domain/
 │   └── FinanceFlow.Infrastructure/
 ├── .github/
+│   └── workflows/
+│       └── android.yml
 ├── Dockerfile
 ├── docker-compose.yml
 ├── index.html
@@ -258,7 +271,7 @@ ASPNETCORE_ENVIRONMENT=Production
 | Calendário financeiro | 🟡 Planejado |
 | Tema claro/escuro | 🟢 Implementado |
 | Identidade visual | 🟢 Implementado |
-| Aplicativo Android WebView | 🟡 Em evolução |
+| Aplicativo Android WebView | 🟢 Build automatizado |
 
 ---
 
@@ -307,13 +320,13 @@ O frontend possui publicação pelo **GitHub Pages**.
 
 O backend possui estrutura Docker preparada para hospedagem em ambiente de produção e integração com banco PostgreSQL externo.
 
-O projeto também possui automações via **GitHub Actions**, incluindo o processo utilizado para gerar o APK Android WebView.
+O projeto também possui automações via **GitHub Actions**, incluindo o processo de geração do APK Android WebView.
 
 ---
 
 ## 📱 Build Android
 
-O APK de teste é gerado por workflow do GitHub Actions.
+O APK é gerado automaticamente pelo workflow `.github/workflows/android.yml`.
 
 Fluxo simplificado:
 
@@ -322,18 +335,20 @@ GitHub
   ↓
 Checkout do projeto
   ↓
-Configuração Java + Android SDK
+Configuração Java 17 + Android SDK
   ↓
 Criação do projeto Android WebView
   ↓
-Compilação Gradle
+Compilação Gradle Release
   ↓
 FinanceFlow.apk
   ↓
 Artifact: FinanceFlow-APK
 ```
 
-O APK gerado é destinado a testes e distribuição manual enquanto o aplicativo mobile definitivo não é implementado.
+**[📥 Baixar o APK pelo GitHub Actions](https://github.com/KaykyFerro/FinanceFlow/actions/workflows/android.yml)**
+
+O APK de teste é destinado à distribuição manual enquanto o aplicativo mobile definitivo não é implementado.
 
 ---
 
@@ -346,6 +361,7 @@ A arquitetura prevê:
 - Separação entre frontend, API e banco.
 - Configuração de banco por variáveis de ambiente em produção.
 - HTTPS no acesso publicado pelo GitHub Pages.
+- O aplicativo WebView utiliza HTTPS para acessar o frontend publicado.
 
 **Importante:** o ambiente de desenvolvimento não deve ser utilizado como ambiente de produção sem revisar credenciais, secrets, CORS, JWT, conexão com banco e demais configurações de segurança.
 
@@ -368,6 +384,9 @@ A arquitetura prevê:
 - GitHub Actions
 - GitHub Pages
 - Android WebView
+- Java 17
+- Gradle
+- Android SDK 35
 
 ---
 
@@ -386,6 +405,7 @@ Alguns pontos ainda previstos para evolução do projeto:
 - Melhorar o módulo de investimentos.
 - Implementar calendário financeiro.
 - Evoluir a versão Android para uma experiência mobile mais completa.
+- Publicar o APK em uma Release permanente do GitHub.
 - Fortalecer testes automatizados.
 - Revisar configurações de produção e segurança.
 
@@ -412,7 +432,9 @@ Entre as alterações recentes do projeto estão:
 - Criação e aplicação da nova identidade visual.
 - Aplicação da logo na autenticação e no menu lateral.
 - Correção da logo para evitar distorções.
-- Criação do aplicativo Android WebView e geração do APK de teste.
+- Criação da documentação do Android WebView.
+- Criação do workflow automatizado para geração do APK Release.
+- Publicação do APK como artifact `FinanceFlow-APK`.
 
 ---
 
