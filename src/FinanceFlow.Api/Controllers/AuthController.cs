@@ -24,23 +24,22 @@ public sealed class AuthController(
     {
         if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Email) || request.Password.Length < 8)
             return BadRequest(new { message = "Nome, e-mail e uma senha de pelo menos 8 caracteres são obrigatórios." });
+
         var email = request.Email.Trim().ToLowerInvariant();
         if (await db.Users.AnyAsync(x => x.Email == email, cancellationToken))
             return Conflict(new { message = "Este e-mail já está cadastrado." });
+
         var user = new User(request.Name, email, string.Empty);
         user.ChangePasswordHash(passwordHasher.HashPassword(user, request.Password));
+        user.ConfirmEmail();
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
-        var token = await authTokens.CreateAsync(user.Id, AuthTokenType.EmailVerification, TimeSpan.FromHours(24), cancellationToken);
-        try
+
+        return StatusCode(StatusCodes.Status201Created, new
         {
-            await emailSender.SendVerificationAsync(user.Email, token, cancellationToken);
-        }
-        catch (InvalidOperationException)
-        {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Sua conta foi criada, mas não foi possível enviar o e-mail de confirmação. Use o botão de reenviar confirmação." });
-        }
-        return StatusCode(StatusCodes.Status201Created, new { message = "Cadastro criado. Verifique seu e-mail para ativar a conta.", user = TokenService.ToResponse(user) });
+            message = "Cadastro criado com sucesso. Você já pode entrar.",
+            user = TokenService.ToResponse(user)
+        });
     }
 
     [HttpPost("login")]
@@ -50,8 +49,7 @@ public sealed class AuthController(
         var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email, cancellationToken);
         if (user is null || passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
             return Unauthorized(new { message = "E-mail ou senha inválidos." });
-        if (!user.EmailConfirmed)
-            return StatusCode(StatusCodes.Status403Forbidden, new { message = "Confirme seu e-mail antes de entrar." });
+
         user.RegisterLogin();
         await db.SaveChangesAsync(cancellationToken);
         return Ok(await tokens.IssueAsync(user, cancellationToken));
@@ -69,38 +67,6 @@ public sealed class AuthController(
     {
         await tokens.RevokeAsync(request.RefreshToken, cancellationToken);
         return NoContent();
-    }
-
-    [HttpPost("verify-email")]
-    public async Task<IActionResult> VerifyEmail(VerifyEmailRequest request, CancellationToken cancellationToken)
-    {
-        var token = await authTokens.ConsumeAsync(request.Token, AuthTokenType.EmailVerification, cancellationToken);
-        if (token is null) return BadRequest(new { message = "Token de verificação inválido ou expirado." });
-        var user = await db.Users.FindAsync([token.UserId], cancellationToken);
-        if (user is null) return BadRequest(new { message = "Usuário não encontrado." });
-        user.ConfirmEmail();
-        await db.SaveChangesAsync(cancellationToken);
-        return Ok(new { message = "E-mail confirmado com sucesso." });
-    }
-
-    [HttpPost("resend-verification")]
-    public async Task<IActionResult> ResendVerification(ForgotPasswordRequest request, CancellationToken cancellationToken)
-    {
-        var email = request.Email.Trim().ToLowerInvariant();
-        var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email, cancellationToken);
-        if (user is not null && !user.EmailConfirmed)
-        {
-            var token = await authTokens.CreateAsync(user.Id, AuthTokenType.EmailVerification, TimeSpan.FromHours(24), cancellationToken);
-            try
-            {
-                await emailSender.SendVerificationAsync(user.Email, token, cancellationToken);
-            }
-            catch (InvalidOperationException)
-            {
-                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "Não foi possível enviar o e-mail agora. Verifique a configuração do serviço de e-mail e tente novamente." });
-            }
-        }
-        return Ok(new { message = "Se o cadastro existir e ainda não estiver confirmado, uma nova verificação foi enviada." });
     }
 
     [HttpPost("forgot-password")]
@@ -144,17 +110,13 @@ public sealed class AuthController(
         var userId = GetUserId();
         var user = await db.Users.FindAsync([userId], cancellationToken);
         if (user is null) return Unauthorized();
+
         var email = request.Email.Trim().ToLowerInvariant();
         if (await db.Users.AnyAsync(x => x.Email == email && x.Id != userId, cancellationToken))
             return Conflict(new { message = "Este e-mail já está em uso." });
-        var emailChanged = !string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase);
+
         user.UpdateProfile(request.Name, email);
-        if (emailChanged)
-        {
-            user.RequireEmailConfirmation();
-            var token = await authTokens.CreateAsync(user.Id, AuthTokenType.EmailVerification, TimeSpan.FromHours(24), cancellationToken);
-            await emailSender.SendVerificationAsync(user.Email, token, cancellationToken);
-        }
+        user.ConfirmEmail();
         await db.SaveChangesAsync(cancellationToken);
         return Ok(TokenService.ToResponse(user));
     }
