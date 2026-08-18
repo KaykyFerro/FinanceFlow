@@ -50,13 +50,14 @@ try
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<FinanceFlowDbContext>();
     await db.Database.EnsureCreatedAsync();
-    await db.Database.ExecuteSqlRawAsync(@"
-CREATE TABLE IF NOT EXISTS \"Categories\" (\"Id\" uuid PRIMARY KEY, \"UserId\" uuid NOT NULL, \"Name\" varchar(80) NOT NULL, \"Color\" varchar(20) NOT NULL, \"IsIncome\" boolean NOT NULL);
-CREATE UNIQUE INDEX IF NOT EXISTS \"IX_Categories_UserId_Name\" ON \"Categories\" (\"UserId\", \"Name\");
-CREATE TABLE IF NOT EXISTS \"Transactions\" (\"Id\" uuid PRIMARY KEY, \"UserId\" uuid NOT NULL, \"AccountId\" uuid NOT NULL, \"CategoryId\" uuid NULL, \"Description\" varchar(180) NOT NULL, \"Amount\" numeric(18,2) NOT NULL, \"Type\" integer NOT NULL, \"Date\" timestamp with time zone NOT NULL, \"Notes\" varchar(500) NULL, \"Confirmed\" boolean NOT NULL DEFAULT TRUE);
-CREATE INDEX IF NOT EXISTS \"IX_Transactions_UserId_Date\" ON \"Transactions\" (\"UserId\", \"Date\");
-CREATE TABLE IF NOT EXISTS \"Budgets\" (\"Id\" uuid PRIMARY KEY, \"UserId\" uuid NOT NULL, \"CategoryId\" uuid NOT NULL, \"Month\" timestamp with time zone NOT NULL, \"LimitAmount\" numeric(18,2) NOT NULL);
-CREATE UNIQUE INDEX IF NOT EXISTS \"IX_Budgets_UserId_CategoryId_Month\" ON \"Budgets\" (\"UserId\", \"CategoryId\", \"Month\");");
+    await db.Database.ExecuteSqlRawAsync("""
+CREATE TABLE IF NOT EXISTS "Categories" ("Id" uuid PRIMARY KEY, "UserId" uuid NOT NULL, "Name" varchar(80) NOT NULL, "Color" varchar(20) NOT NULL, "IsIncome" boolean NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_Categories_UserId_Name" ON "Categories" ("UserId", "Name");
+CREATE TABLE IF NOT EXISTS "Transactions" ("Id" uuid PRIMARY KEY, "UserId" uuid NOT NULL, "AccountId" uuid NOT NULL, "CategoryId" uuid NULL, "Description" varchar(180) NOT NULL, "Amount" numeric(18,2) NOT NULL, "Type" integer NOT NULL, "Date" timestamp with time zone NOT NULL, "Notes" varchar(500) NULL, "Confirmed" boolean NOT NULL DEFAULT TRUE);
+CREATE INDEX IF NOT EXISTS "IX_Transactions_UserId_Date" ON "Transactions" ("UserId", "Date");
+CREATE TABLE IF NOT EXISTS "Budgets" ("Id" uuid PRIMARY KEY, "UserId" uuid NOT NULL, "CategoryId" uuid NOT NULL, "Month" timestamp with time zone NOT NULL, "LimitAmount" numeric(18,2) NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_Budgets_UserId_CategoryId_Month" ON "Budgets" ("UserId", "CategoryId", "Month");
+""");
 }
 catch (Exception ex) { app.Logger.LogError(ex, "Database initialization failed. The API will remain online; database-backed endpoints may be unavailable."); }
 
