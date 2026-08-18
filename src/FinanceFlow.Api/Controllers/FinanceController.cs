@@ -104,7 +104,11 @@ public sealed class FinanceController(FinanceFlowDbContext db) : ControllerBase
             });
 
         var cashBalance = accountRows.Sum(x => x.Balance);
-        var patrimonio = cashBalance + investment;
+
+        // Patrimônio operacional representa somente o dinheiro disponível nas contas.
+        // Investimentos são exibidos separadamente no indicador "Investimentos"
+        // e não entram no cálculo do patrimônio.
+        var patrimonio = cashBalance;
 
         var categoryRows = categories.Select(c => new
         {
