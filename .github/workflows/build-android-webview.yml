@@ -12,20 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
       - name: Instalar Android SDK 35
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - name: Instalar Gradle
-        run: |
-          curl -L -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
-          unzip -q /tmp/gradle.zip -d /opt
-          echo "/opt/gradle-8.11.1/bin" >> "$GITHUB_PATH"
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Verificar Gradle do runner
+        run: gradle --version
       - name: Criar projeto Android WebView
         shell: bash
         run: |
