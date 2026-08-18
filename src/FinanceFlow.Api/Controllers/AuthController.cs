@@ -22,14 +22,15 @@ public sealed class AuthController(
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Email) || request.Password.Length < 8)
-            return BadRequest(new { message = "Nome, e-mail e uma senha de pelo menos 8 caracteres são obrigatórios." });
+        if (string.IsNullOrWhiteSpace(request.Email) || request.Password.Length < 8)
+            return BadRequest(new { message = "E-mail e uma senha de pelo menos 8 caracteres são obrigatórios." });
 
         var email = request.Email.Trim().ToLowerInvariant();
         if (await db.Users.AnyAsync(x => x.Email == email, cancellationToken))
             return Conflict(new { message = "Este e-mail já está cadastrado." });
 
-        var user = new User(request.Name, email, string.Empty);
+        var name = email.Split('@')[0];
+        var user = new User(name, email, string.Empty);
         user.ChangePasswordHash(passwordHasher.HashPassword(user, request.Password));
         user.ConfirmEmail();
         db.Users.Add(user);
