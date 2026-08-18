@@ -49,7 +49,7 @@ public sealed class FinanceController(FinanceFlowDbContext db) : ControllerBase
         db.Transactions.Add(item); await db.SaveChangesAsync(ct); return Created($"/api/finance/transactions/{item.Id}", item);
     }
 
-    [HttpPut("transactions/{id:guid}")]
+    [HttpPut("transactions/{id:guid")]
     public async Task<IActionResult> UpdateTransaction(Guid id, TransactionRequest request, CancellationToken ct)
     {
         var userId = GetUserId(); var item = await db.Transactions.SingleOrDefaultAsync(x => x.Id == id && x.UserId == userId, ct);
@@ -60,7 +60,7 @@ public sealed class FinanceController(FinanceFlowDbContext db) : ControllerBase
         await db.SaveChangesAsync(ct); return Ok(item);
     }
 
-    [HttpDelete("transactions/{id:guid")]
+    [HttpDelete("transactions/{id:guid}")]
     public async Task<IActionResult> DeleteTransaction(Guid id, CancellationToken ct)
     {
         var item = await db.Transactions.SingleOrDefaultAsync(x => x.Id == id && x.UserId == GetUserId(), ct);
