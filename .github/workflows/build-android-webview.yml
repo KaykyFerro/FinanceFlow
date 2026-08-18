@@ -2,168 +2,76 @@ name: Build FinanceFlow APK
 
 on:
   push:
-    branches:
-      - android-webview
+    branches: [android-webview]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configurar Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
-
+      - uses: android-actions/setup-android@v3
       - name: Instalar Android SDK 35
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
       - name: Instalar Gradle
         run: |
           curl -L -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
           unzip -q /tmp/gradle.zip -d /opt
           echo "/opt/gradle-8.11.1/bin" >> "$GITHUB_PATH"
-
       - name: Criar projeto Android WebView
         shell: bash
         run: |
-          mkdir -p android-webview/app/src/main/java/com/kaykyferro/financeflow
-          mkdir -p android-webview/app/src/main/res/drawable
-          mkdir -p android-webview/app/src/main/res/mipmap-anydpi-v26
-          mkdir -p android-webview/app/src/main/res/mipmap-hdpi
-          mkdir -p android-webview/app/src/main/res/mipmap-mdpi
-          mkdir -p android-webview/app/src/main/res/mipmap-xhdpi
-          mkdir -p android-webview/app/src/main/res/mipmap-xxhdpi
-          mkdir -p android-webview/app/src/main/res/mipmap-xxxhdpi
-          mkdir -p android-webview/app/src/main/res/values
-
+          mkdir -p android-webview/app/src/main/java/com/kaykyferro/financeflow android-webview/app/src/main/res/drawable android-webview/app/src/main/res/mipmap-anydpi-v26 android-webview/app/src/main/res/values
           cat > android-webview/settings.gradle.kts <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
           rootProject.name = "FinanceFlow"
           include(":app")
           EOF
-
           cat > android-webview/build.gradle.kts <<'EOF'
-          plugins {
-              id("com.android.application") version "8.7.3" apply false
-              id("org.jetbrains.kotlin.android") version "2.0.21" apply false
-          }
+          plugins { id("com.android.application") version "8.7.3" apply false; id("org.jetbrains.kotlin.android") version "2.0.21" apply false }
           EOF
-
           cat > android-webview/gradle.properties <<'EOF'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
           kotlin.code.style=official
           EOF
-
           cat > android-webview/app/build.gradle.kts <<'EOF'
-          plugins {
-              id("com.android.application")
-              id("org.jetbrains.kotlin.android")
-          }
-
-          android {
-              namespace = "com.kaykyferro.financeflow"
-              compileSdk = 35
-
-              defaultConfig {
-                  applicationId = "com.kaykyferro.financeflow"
-                  minSdk = 24
-                  targetSdk = 35
-                  versionCode = 1
-                  versionName = "1.0"
-              }
-
-              buildTypes {
-                  release {
-                      isMinifyEnabled = false
-                      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-                  }
-              }
-
-              compileOptions {
-                  sourceCompatibility = JavaVersion.VERSION_17
-                  targetCompatibility = JavaVersion.VERSION_17
-              }
-
+          plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
+          android { namespace = "com.kaykyferro.financeflow"; compileSdk = 35
+              defaultConfig { applicationId = "com.kaykyferro.financeflow"; minSdk = 24; targetSdk = 35; versionCode = 1; versionName = "1.0" }
+              buildTypes { release { isMinifyEnabled = false; proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro") } }
+              compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
               kotlinOptions { jvmTarget = "17" }
           }
-
-          dependencies {
-              implementation("androidx.core:core-ktx:1.15.0")
-              implementation("androidx.appcompat:appcompat:1.7.0")
-              implementation("androidx.activity:activity-ktx:1.10.1")
-              implementation("androidx.webkit:webkit:1.12.1")
-          }
+          dependencies { implementation("androidx.core:core-ktx:1.15.0"); implementation("androidx.appcompat:appcompat:1.7.0"); implementation("androidx.activity:activity-ktx:1.10.1") }
           EOF
-
           touch android-webview/app/proguard-rules.pro
-
-          cat > android-webview/app/src/main/res/values/colors.xml <<'EOF'
-          <resources>
-              <color name="financeflow_green">#08A579</color>
-          </resources>
-          EOF
-
           cat > android-webview/app/src/main/res/values/styles.xml <<'EOF'
-          <resources>
-              <style name="Theme.FinanceFlow" parent="Theme.AppCompat.DayNight.NoActionBar">
-                  <item name="android:fontFamily">sans</item>
-                  <item name="android:statusBarColor">#0D131B</item>
-                  <item name="android:navigationBarColor">#0D131B</item>
-                  <item name="android:windowLightStatusBar">false</item>
-              </style>
-          </resources>
+          <resources><style name="Theme.FinanceFlow" parent="Theme.AppCompat.DayNight.NoActionBar"><item name="android:fontFamily">sans</item><item name="android:statusBarColor">#0D131B</item><item name="android:navigationBarColor">#0D131B</item><item name="android:windowLightStatusBar">false</item></style></resources>
           EOF
-
-          cat > android-webview/app/src/main/res/drawable/ic_launcher_foreground.xml <<'EOF'
-          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-              <path android:fillColor="#08D6A0" android:pathData="M28,27 L79,27 L69,43 L47,43 L47,51 L67,51 L58,66 L47,66 L47,81 L28,81 Z" />
-          </vector>
-          EOF
-
           cat > android-webview/app/src/main/res/drawable/ic_launcher_background.xml <<'EOF'
-          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-              <solid android:color="#0D131B" />
-          </shape>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle"><solid android:color="#0D131B"/></shape>
           EOF
-
+          cat > android-webview/app/src/main/res/drawable/ic_launcher_foreground.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#08D6A0" android:pathData="M28,27 L79,27 L69,43 L47,43 L47,51 L67,51 L58,66 L47,66 L47,81 L28,81 Z"/></vector>
+          EOF
           cat > android-webview/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
-          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-              <background android:drawable="@drawable/ic_launcher_background" />
-              <foreground android:drawable="@drawable/ic_launcher_foreground" />
-          </adaptive-icon>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"><background android:drawable="@drawable/ic_launcher_background"/><foreground android:drawable="@drawable/ic_launcher_foreground"/></adaptive-icon>
           EOF
-
           cat > android-webview/app/src/main/AndroidManifest.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <uses-permission android:name="android.permission.INTERNET" />
-              <application android:allowBackup="true" android:label="FinanceFlow" android:theme="@style/Theme.FinanceFlow" android:usesCleartextTraffic="false" android:icon="@drawable/ic_launcher_foreground" android:roundIcon="@drawable/ic_launcher_foreground">
-                  <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
+          <?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android"><uses-permission android:name="android.permission.INTERNET"/><application android:allowBackup="true" android:label="FinanceFlow" android:theme="@style/Theme.FinanceFlow" android:usesCleartextTraffic="false" android:icon="@drawable/ic_launcher_foreground" android:roundIcon="@drawable/ic_launcher_foreground"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>
           EOF
-
           cat > android-webview/app/src/main/java/com/kaykyferro/financeflow/MainActivity.kt <<'EOF'
           package com.kaykyferro.financeflow
-
           import android.annotation.SuppressLint
           import android.graphics.Color
           import android.os.Bundle
@@ -175,66 +83,27 @@ jobs:
           import android.webkit.WebViewClient
           import androidx.activity.OnBackPressedCallback
           import androidx.appcompat.app.AppCompatActivity
-
           class MainActivity : AppCompatActivity() {
               private lateinit var webView: WebView
-              private val startUrl = "https://kaykyferro.github.io/FinanceFlow/frontend/auth.html"
-
-              @SuppressLint("SetJavaScriptEnabled")
-              override fun onCreate(savedInstanceState: Bundle?) {
+              @SuppressLint("SetJavaScriptEnabled") override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
-                  webView = WebView(this)
-                  webView.setBackgroundColor(Color.rgb(13, 19, 27))
-                  webView.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                  setContentView(webView)
-
-                  webView.settings.javaScriptEnabled = true
-                  webView.settings.domStorageEnabled = true
-                  webView.settings.databaseEnabled = true
-                  webView.settings.allowFileAccess = false
-                  webView.settings.allowContentAccess = false
-                  webView.settings.setSupportZoom(false)
-                  webView.settings.builtInZoomControls = false
-                  webView.settings.displayZoomControls = false
-                  CookieManager.getInstance().setAcceptCookie(true)
-                  webView.webChromeClient = WebChromeClient()
-                  webView.webViewClient = object : WebViewClient() {
-                      override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                          return !request.url.toString().startsWith("https://")
-                      }
-                  }
-
-                  if (savedInstanceState == null) webView.loadUrl(startUrl) else webView.restoreState(savedInstanceState)
-
-                  onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-                      override fun handleOnBackPressed() {
-                          if (webView.canGoBack()) webView.goBack() else finish()
-                      }
-                  })
+                  webView=WebView(this); webView.setBackgroundColor(Color.rgb(13,19,27)); webView.layoutParams=ViewGroup.LayoutParams(-1,-1); setContentView(webView)
+                  webView.settings.javaScriptEnabled=true; webView.settings.domStorageEnabled=true; webView.settings.databaseEnabled=true; webView.settings.allowFileAccess=false; webView.settings.allowContentAccess=false; webView.settings.setSupportZoom(false); webView.settings.builtInZoomControls=false; webView.settings.displayZoomControls=false
+                  CookieManager.getInstance().setAcceptCookie(true); webView.webChromeClient=WebChromeClient()
+                  webView.webViewClient=object:WebViewClient(){ override fun shouldOverrideUrlLoading(view:WebView,request:WebResourceRequest)=!request.url.toString().startsWith("https://") }
+                  if(savedInstanceState==null) webView.loadUrl("https://kaykyferro.github.io/FinanceFlow/frontend/auth.html") else webView.restoreState(savedInstanceState)
+                  onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){if(webView.canGoBack())webView.goBack() else finish()}})
               }
-
-              override fun onSaveInstanceState(outState: Bundle) {
-                  webView.saveState(outState)
-                  super.onSaveInstanceState(outState)
-              }
-
-              override fun onDestroy() {
-                  webView.stopLoading()
-                  webView.destroy()
-                  super.onDestroy()
-              }
+              override fun onSaveInstanceState(outState:Bundle){webView.saveState(outState);super.onSaveInstanceState(outState)}
+              override fun onDestroy(){webView.stopLoading();webView.destroy();super.onDestroy()}
           }
           EOF
-
       - name: Compilar APK
         working-directory: android-webview
         run: gradle --no-daemon :app:assembleDebug
-
       - name: Renomear APK
         run: cp android-webview/app/build/outputs/apk/debug/app-debug.apk FinanceFlow.apk
-
-      - name: Publicar APK
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: FinanceFlow-APK
           path: FinanceFlow.apk
