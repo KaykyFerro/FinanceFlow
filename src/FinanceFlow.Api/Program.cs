@@ -57,6 +57,12 @@ CREATE TABLE IF NOT EXISTS "Transactions" ("Id" uuid PRIMARY KEY, "UserId" uuid 
 CREATE INDEX IF NOT EXISTS "IX_Transactions_UserId_Date" ON "Transactions" ("UserId", "Date");
 CREATE TABLE IF NOT EXISTS "Budgets" ("Id" uuid PRIMARY KEY, "UserId" uuid NOT NULL, "CategoryId" uuid NOT NULL, "Month" timestamp with time zone NOT NULL, "LimitAmount" numeric(18,2) NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_Budgets_UserId_CategoryId_Month" ON "Budgets" ("UserId", "CategoryId", "Month");
+CREATE TABLE IF NOT EXISTS "CreditCards" ("Id" uuid PRIMARY KEY, "UserId" uuid NOT NULL, "Institution" varchar(100) NOT NULL, "Name" varchar(100) NOT NULL, "LastFourDigits" varchar(4) NULL, "CreditLimit" numeric(18,2) NOT NULL, "ClosingDay" integer NOT NULL, "DueDay" integer NOT NULL, "Active" boolean NOT NULL DEFAULT TRUE);
+CREATE INDEX IF NOT EXISTS "IX_CreditCards_UserId" ON "CreditCards" ("UserId");
+CREATE TABLE IF NOT EXISTS "CreditCardPurchases" ("Id" uuid PRIMARY KEY, "UserId" uuid NOT NULL, "CreditCardId" uuid NOT NULL, "CategoryId" uuid NULL, "Description" varchar(180) NOT NULL, "TotalAmount" numeric(18,2) NOT NULL, "Installments" integer NOT NULL, "PurchaseDate" timestamp with time zone NOT NULL, "FirstInvoiceMonth" timestamp with time zone NOT NULL, "Notes" varchar(500) NULL, "Confirmed" boolean NOT NULL DEFAULT TRUE);
+CREATE INDEX IF NOT EXISTS "IX_CreditCardPurchases_UserId_CreditCardId_FirstInvoiceMonth" ON "CreditCardPurchases" ("UserId", "CreditCardId", "FirstInvoiceMonth");
+CREATE TABLE IF NOT EXISTS "CreditCardInvoices" ("Id" uuid PRIMARY KEY, "UserId" uuid NOT NULL, "CreditCardId" uuid NOT NULL, "ReferenceMonth" timestamp with time zone NOT NULL, "ClosingDate" timestamp with time zone NOT NULL, "DueDate" timestamp with time zone NOT NULL, "TotalAmount" numeric(18,2) NOT NULL, "PaidAmount" numeric(18,2) NOT NULL, "Status" integer NOT NULL, "PaidAt" timestamp with time zone NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_CreditCardInvoices_UserId_CreditCardId_ReferenceMonth" ON "CreditCardInvoices" ("UserId", "CreditCardId", "ReferenceMonth");
 """);
 }
 catch (Exception ex) { app.Logger.LogError(ex, "Database initialization failed. The API will remain online; database-backed endpoints may be unavailable."); }
