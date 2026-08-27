@@ -20,40 +20,44 @@ jobs:
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-
           start = s.find("function esc(s)")
           end = s.find("\ndocument.addEventListener", start)
           if start >= 0 and end >= 0:
               new_esc = '''function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}'''
               s = s[:start] + new_esc + s[end:]
               print('esc() repaired')
-
           marker = 'class="side-bottom"'
           if marker in s:
               p.write_text(s, encoding='utf-8')
               print('Sidebar quick controls already applied.')
               raise SystemExit(0)
-
           old_css = '.settingrow{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:16px 0;border-bottom:1px solid var(--line)}.muted{color:var(--muted)}.accountactions{display:flex;gap:7px}.clickable{cursor:pointer}'
           new_css = old_css + '.side{display:flex;flex-direction:column}.side-bottom{margin-top:auto;padding-top:18px;border-top:1px solid var(--line)}.side-account{padding:0 4px 16px}.side-account-label{font-size:12px;color:var(--muted);margin-bottom:4px}.side-account-email{display:block;color:var(--text);font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.side-theme-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0 14px}.side-theme-label{font-size:13px;font-weight:700;color:var(--text)}.theme-toggle{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--soft);color:var(--text);display:grid;place-items:center;font-size:18px}.theme-toggle:hover{border-color:var(--green);color:var(--green)}.side-logout{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:var(--input);color:var(--text);font-weight:750;text-align:left}.side-logout:hover{border-color:var(--green);background:rgba(10,165,121,.08)}'
           if old_css not in s:
               raise SystemExit('CSS anchor not found')
           s = s.replace(old_css, new_css, 1)
-
           old_html = '<div class="app"><aside class="side"><div class="brand"><div class="logo">▣</div><div><b>FinanceFlow</b><small>Gestão Financeira</small></div></div><div class="userbox">Ambiente autenticado<strong id="userName">FinanceFlow</strong></div><nav class="nav" id="nav"></nav></aside><main class="main"><div id="app"></div></main></div>'
           new_html = '<div class="app"><aside class="side"><div class="brand"><div class="logo">▣</div><div><b>FinanceFlow</b><small>Gestão Financeira</small></div></div><div class="userbox">Logado como:<strong id="userName">FinanceFlow</strong></div><nav class="nav" id="nav"></nav><div class="side-bottom"><div class="side-account"><div class="side-account-label">Conta conectada</div><strong class="side-account-email" id="sideEmail">FinanceFlow</strong></div><div class="side-theme-row"><span class="side-theme-label">Tema</span><button class="theme-toggle" data-action="theme" title="Alternar tema" aria-label="Alternar tema">☼</button></div><button class="side-logout" data-action="logout">⇥&nbsp; Sair</button></div></aside><main class="main"><div id="app"></div></main></div>'
           if old_html not in s:
               raise SystemExit('HTML anchor not found')
           s = s.replace(old_html, new_html, 1)
-
           old_user = "document.getElementById('userName').textContent=claims.unique_name||claims.name||claims.email||'FinanceFlow';"
           new_user = "const connectedEmail=claims.email||claims.unique_name||claims.name||'FinanceFlow';document.getElementById('userName').textContent=connectedEmail;document.getElementById('sideEmail').textContent=connectedEmail;"
           if old_user not in s:
               raise SystemExit('User anchor not found')
           s = s.replace(old_user, new_user, 1)
-
           p.write_text(s, encoding='utf-8')
           print('Sidebar quick controls applied.')
+
+      - name: Check JavaScript syntax
+        shell: python
+        run: |
+          from pathlib import Path
+          s = Path('index.html').read_text(encoding='utf-8')
+          script = s.split('<script>', 1)[1].split('</script>', 1)[0]
+          Path('/tmp/financeflow.js').write_text(script, encoding='utf-8')
+      - name: Validate JavaScript
+        run: node --check /tmp/financeflow.js
 
       - name: Commit patched UI
         run: |
