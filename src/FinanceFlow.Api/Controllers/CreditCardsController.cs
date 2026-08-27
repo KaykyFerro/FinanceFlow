@@ -107,7 +107,9 @@ public sealed class CreditCardsController(FinanceFlowDbContext db) : ControllerB
         if (request.Amount <= 0) return BadRequest(new { message = "Valor do pagamento deve ser positivo." });
         var card = await db.CreditCards.SingleOrDefaultAsync(x => x.Id == id && x.UserId == userId, ct);
         if (card is null) return NotFound();
-        if (!await db.Accounts.AnyAsync(x => x.Id == request.AccountId && x.UserId == userId, ct)) return BadRequest(new { message = "Conta de pagamento inválida." });
+        var accountId = request.AccountId ?? await db.Accounts.Where(x => x.UserId == userId && x.Type != AccountType.Investment).OrderBy(x => x.Name).Select(x => (Guid?)x.Id).FirstOrDefaultAsync(ct);
+        if (accountId is null) return BadRequest(new { message = "Cadastre uma conta para registrar o pagamento da fatura." });
+        if (!await db.Accounts.AnyAsync(x => x.Id == accountId && x.UserId == userId && x.Type != AccountType.Investment, ct)) return BadRequest(new { message = "Conta de pagamento inválida." });
         var invoices = await BuildInvoices(card, ct);
         var invoice = invoices.FirstOrDefault(x => x.Id == invoiceId);
         if (invoice is null) return NotFound(new { message = "Fatura não encontrada." });
@@ -122,10 +124,10 @@ public sealed class CreditCardsController(FinanceFlowDbContext db) : ControllerB
         }
         entity.Recalculate(invoice.TotalAmount, DateTime.UtcNow);
         entity.Pay(request.Amount, DateTime.UtcNow);
-        var tx = new Transaction(userId, request.AccountId, request.CategoryId, $"Pagamento fatura {card.Name}", request.Amount, TransactionType.Expense, DateTime.UtcNow, $"Fatura {invoice.ReferenceMonth:MM/yyyy}");
+        var tx = new Transaction(userId, accountId.Value, request.CategoryId, $"Pagamento fatura {card.Name}", request.Amount, TransactionType.Expense, DateTime.UtcNow, $"Fatura {invoice.ReferenceMonth:MM/yyyy}");
         db.Transactions.Add(tx);
         await db.SaveChangesAsync(ct);
-        return Ok(new { entity.Id, entity.TotalAmount, entity.PaidAmount, status = entity.Status.ToString(), entity.PaidAt, paymentTransactionId = tx.Id });
+        return Ok(new { entity.Id, entity.TotalAmount, entity.PaidAmount, status = entity.Status.ToString(), entity.PaidAt, paymentTransactionId = tx.Id, paymentAccountId = accountId });
     }
 
     private async Task<List<InvoiceView>> BuildInvoices(CreditCard card, CancellationToken ct)
@@ -173,7 +175,7 @@ public sealed class CreditCardsController(FinanceFlowDbContext db) : ControllerB
 
     public sealed record CardRequest(string Institution, string Name, decimal CreditLimit, int ClosingDay, int DueDay, string? LastFourDigits, bool Active = true);
     public sealed record PurchaseRequest(Guid? CategoryId, string Description, decimal Amount, int Installments, DateTime PurchaseDate, DateTime? FirstInvoiceMonth, string? Notes);
-    public sealed record PaymentRequest(Guid AccountId, decimal Amount, Guid? CategoryId);
+    public sealed record PaymentRequest(Guid? AccountId, decimal Amount, Guid? CategoryId);
     public sealed record InvoiceLine(Guid PurchaseId, string Description, int Installments, int InstallmentNumber, decimal Amount, Guid? CategoryId);
     public sealed record InvoiceView(Guid Id, DateTime ReferenceMonth, DateTime ClosingDate, DateTime DueDate, decimal TotalAmount, decimal PaidAmount, string Status, List<InvoiceLine> Lines);
 }
