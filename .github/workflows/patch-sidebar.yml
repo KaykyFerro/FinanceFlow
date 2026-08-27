@@ -23,7 +23,7 @@ jobs:
           start = s.find("function esc(s)")
           end = s.find("\ndocument.addEventListener", start)
           if start >= 0 and end >= 0:
-              new_esc = '''function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}'''
+              new_esc = '''function esc(s){return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])).replaceAll('"','&quot;').replaceAll("'",'&#39;')}'''
               s = s[:start] + new_esc + s[end:]
               print('esc() repaired')
           marker = 'class="side-bottom"'
