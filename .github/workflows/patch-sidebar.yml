@@ -26,6 +26,12 @@ jobs:
               new_esc = '''function esc(s){return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])).replaceAll('"','&quot;').replaceAll("'",'&#39;')}'''
               s = s[:start] + new_esc + s[end:]
               print('esc() repaired')
+
+          bad_dashboard = "</section>`) }"
+          s = s.replace(bad_dashboard, "</section>`}")
+          s = s.replace("</section>`)}\nfunction transactions", "</section>`}\nfunction transactions", 1)
+          print('dashboard() terminator repaired')
+
           marker = 'class="side-bottom"'
           if marker in s:
               p.write_text(s, encoding='utf-8')
