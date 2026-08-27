@@ -14,3 +14,5 @@ WORKDIR /app
 ENV ASPNETCORE_ENVIRONMENT=Production
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "FinanceFlow.Api.dll"]
+
+# FinanceFlow dashboard repair trigger
