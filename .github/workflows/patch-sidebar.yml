@@ -14,15 +14,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Patch sidebar
+      - name: Patch sidebar and repair script
         shell: python
         run: |
           from pathlib import Path
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
 
+          start = s.find("function esc(s)")
+          end = s.find("\ndocument.addEventListener", start)
+          if start >= 0 and end >= 0:
+              new_esc = '''function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}'''
+              s = s[:start] + new_esc + s[end:]
+              print('esc() repaired')
+
           marker = 'class="side-bottom"'
           if marker in s:
+              p.write_text(s, encoding='utf-8')
               print('Sidebar quick controls already applied.')
               raise SystemExit(0)
 
@@ -55,6 +63,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "ui: add quick theme and logout controls"
+            git commit -m "fix: restore FinanceFlow dashboard script"
             git push
           fi
