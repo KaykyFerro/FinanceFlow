@@ -173,7 +173,7 @@ public sealed class CreditCardsController(FinanceFlowDbContext db) : ControllerB
 
     public sealed record CardRequest(string Institution, string Name, decimal CreditLimit, int ClosingDay, int DueDay, string? LastFourDigits, bool Active = true);
     public sealed record PurchaseRequest(Guid? CategoryId, string Description, decimal Amount, int Installments, DateTime PurchaseDate, DateTime? FirstInvoiceMonth, string? Notes);
-    public sealed record PaymentRequest(decimal AccountId, decimal Amount, Guid? CategoryId);
+    public sealed record PaymentRequest(Guid AccountId, decimal Amount, Guid? CategoryId);
     public sealed record InvoiceLine(Guid PurchaseId, string Description, int Installments, int InstallmentNumber, decimal Amount, Guid? CategoryId);
     public sealed record InvoiceView(Guid Id, DateTime ReferenceMonth, DateTime ClosingDate, DateTime DueDate, decimal TotalAmount, decimal PaidAmount, string Status, List<InvoiceLine> Lines);
 }
