@@ -16,14 +16,17 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          old = '''function esc(s){return String(s??'').replace(/[&<>\\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\\"':'&quot;',\\"'\\":'&#39;'}[c]))}'''
-          new = '''function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}'''
-          if old in s:
-              p.write_text(s.replace(old, new), encoding='utf-8')
+          pattern = r"function esc\(s\)\{.*?\}\[c\]\)\}"
+          new = """function esc(s){return String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[c]))}"""
+          fixed, n = re.subn(pattern, new, s, count=1, flags=re.S)
+          if n:
+              p.write_text(fixed, encoding='utf-8')
+              print('FinanceFlow esc() fixed')
           else:
-              print('No broken esc function found')
+              raise SystemExit('esc() function not found')
       - name: Commit fix
         run: |
           git config user.name 'github-actions[bot]'
