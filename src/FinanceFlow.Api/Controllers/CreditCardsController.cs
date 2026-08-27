@@ -21,12 +21,12 @@ public sealed class CreditCardsController(FinanceFlowDbContext db) : ControllerB
         foreach (var card in cards)
         {
             var invoices = await BuildInvoices(card, ct);
-            var current = invoices.FirstOrDefault(IsCurrentInvoice) ?? invoices.FirstOrDefault(x => x.ReferenceMonth >= Month(DateTime.UtcNow));
-            var used = current?.TotalAmount - current.PaidAmount ?? 0m;
+            var future = invoices.Where(x => x.ReferenceMonth >= Month(DateTime.UtcNow) && x.Status != CreditCardInvoiceStatus.Paid).Sum(x => x.TotalAmount - x.PaidAmount);
+            var current = invoices.FirstOrDefault(IsCurrentInvoice);
             result.Add(new
             {
                 card.Id, card.Institution, card.Name, card.LastFourDigits, card.CreditLimit, card.ClosingDay, card.DueDay,
-                usedLimit = Math.Max(0, used), availableLimit = Math.Max(0, card.CreditLimit - used),
+                usedLimit = Math.Max(0, future), availableLimit = Math.Max(0, card.CreditLimit - future),
                 currentInvoice = current
             });
         }
@@ -39,13 +39,8 @@ public sealed class CreditCardsController(FinanceFlowDbContext db) : ControllerB
         var card = await db.CreditCards.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.UserId == GetUserId(), ct);
         if (card is null) return NotFound();
         var invoices = await BuildInvoices(card, ct);
-        return Ok(new
-        {
-            card,
-            invoices,
-            usedLimit = invoices.Where(x => x.ReferenceMonth >= Month(DateTime.UtcNow) && x.Status != CreditCardInvoiceStatus.Paid).Sum(x => x.TotalAmount - x.PaidAmount),
-            availableLimit = Math.Max(0, card.CreditLimit - invoices.Where(x => x.ReferenceMonth >= Month(DateTime.UtcNow) && x.Status != CreditCardInvoiceStatus.Paid).Sum(x => x.TotalAmount - x.PaidAmount))
-        });
+        var used = invoices.Where(x => x.ReferenceMonth >= Month(DateTime.UtcNow) && x.Status != CreditCardInvoiceStatus.Paid).Sum(x => x.TotalAmount - x.PaidAmount);
+        return Ok(new { card, invoices, usedLimit = Math.Max(0, used), availableLimit = Math.Max(0, card.CreditLimit - used) });
     }
 
     [HttpPost]
@@ -108,23 +103,29 @@ public sealed class CreditCardsController(FinanceFlowDbContext db) : ControllerB
     [HttpPost("{id:guid}/invoices/{invoiceId:guid}/pay")]
     public async Task<IActionResult> PayInvoice(Guid id, Guid invoiceId, PaymentRequest request, CancellationToken ct)
     {
+        var userId = GetUserId();
         if (request.Amount <= 0) return BadRequest(new { message = "Valor do pagamento deve ser positivo." });
-        var card = await db.CreditCards.SingleOrDefaultAsync(x => x.Id == id && x.UserId == GetUserId(), ct);
+        var card = await db.CreditCards.SingleOrDefaultAsync(x => x.Id == id && x.UserId == userId, ct);
         if (card is null) return NotFound();
+        if (!await db.Accounts.AnyAsync(x => x.Id == request.AccountId && x.UserId == userId, ct)) return BadRequest(new { message = "Conta de pagamento inválida." });
         var invoices = await BuildInvoices(card, ct);
         var invoice = invoices.FirstOrDefault(x => x.Id == invoiceId);
         if (invoice is null) return NotFound(new { message = "Fatura não encontrada." });
+        var remaining = invoice.TotalAmount - invoice.PaidAmount;
+        if (request.Amount > remaining) return BadRequest(new { message = "O pagamento não pode ser maior que o saldo da fatura." });
 
-        var entity = await db.CreditCardInvoices.SingleOrDefaultAsync(x => x.Id == invoiceId && x.UserId == GetUserId(), ct);
+        var entity = await db.CreditCardInvoices.SingleOrDefaultAsync(x => x.Id == invoiceId && x.UserId == userId, ct);
         if (entity is null)
         {
-            entity = new CreditCardInvoice(GetUserId(), card.Id, invoice.ReferenceMonth, invoice.ClosingDate, invoice.DueDate);
+            entity = new CreditCardInvoice(userId, card.Id, invoice.ReferenceMonth, invoice.ClosingDate, invoice.DueDate);
             db.CreditCardInvoices.Add(entity);
         }
         entity.Recalculate(invoice.TotalAmount, DateTime.UtcNow);
         entity.Pay(request.Amount, DateTime.UtcNow);
+        var tx = new Transaction(userId, request.AccountId, request.CategoryId, $"Pagamento fatura {card.Name}", request.Amount, TransactionType.Expense, DateTime.UtcNow, $"Fatura {invoice.ReferenceMonth:MM/yyyy}");
+        db.Transactions.Add(tx);
         await db.SaveChangesAsync(ct);
-        return Ok(new { entity.Id, entity.TotalAmount, entity.PaidAmount, status = entity.Status.ToString(), entity.PaidAt });
+        return Ok(new { entity.Id, entity.TotalAmount, entity.PaidAmount, status = entity.Status.ToString(), entity.PaidAt, paymentTransactionId = tx.Id });
     }
 
     private async Task<List<InvoiceView>> BuildInvoices(CreditCard card, CancellationToken ct)
@@ -172,7 +173,7 @@ public sealed class CreditCardsController(FinanceFlowDbContext db) : ControllerB
 
     public sealed record CardRequest(string Institution, string Name, decimal CreditLimit, int ClosingDay, int DueDay, string? LastFourDigits, bool Active = true);
     public sealed record PurchaseRequest(Guid? CategoryId, string Description, decimal Amount, int Installments, DateTime PurchaseDate, DateTime? FirstInvoiceMonth, string? Notes);
-    public sealed record PaymentRequest(decimal Amount);
+    public sealed record PaymentRequest(decimal AccountId, decimal Amount, Guid? CategoryId);
     public sealed record InvoiceLine(Guid PurchaseId, string Description, int Installments, int InstallmentNumber, decimal Amount, Guid? CategoryId);
     public sealed record InvoiceView(Guid Id, DateTime ReferenceMonth, DateTime ClosingDate, DateTime DueDate, decimal TotalAmount, decimal PaidAmount, string Status, List<InvoiceLine> Lines);
 }
