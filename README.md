@@ -1,957 +1,485 @@
 # FinanceFlow
 
-Sistema de gestão financeira pessoal desenvolvido para centralizar **receitas, despesas, contas, categorias, orçamentos e análises financeiras** em uma única aplicação web, com backend em .NET e PostgreSQL e uma versão Android baseada em WebView.
+Sistema de gestão financeira pessoal, com frontend web e API REST em ASP.NET Core + PostgreSQL.
 
-> **Status:** 🚧 Em desenvolvimento ativo. O núcleo financeiro já está funcional, com Dashboard, Transações, Relatórios, Categorias, Contas, Orçamentos, regras para investimentos, tema claro/escuro, identidade visual e build Android automatizado.
->
-> **Observação:** a autenticação e o gerenciamento de sessão existem no projeto, mas ficam **fora da avaliação de funcionalidades abaixo**, conforme o roadmap atual.
+> **Status atual:** em desenvolvimento ativo. O núcleo financeiro já está funcional e o módulo de cartões de crédito começou a ser implementado diretamente no backend, banco e frontend auxiliar.
 
----
+## 🎯 Objetivo
 
-## 🌐 Links
+O FinanceFlow centraliza contas, transações, categorias, orçamentos, investimentos e cartões de crédito em uma única aplicação, com separação de dados por usuário.
 
-- **Aplicação web:** https://kaykyferro.github.io/FinanceFlow/
-- **Autenticação:** https://kaykyferro.github.io/FinanceFlow/frontend/auth.html
-- **Repositório:** https://github.com/KaykyFerro/FinanceFlow
-- **Builds Android:** https://github.com/KaykyFerro/FinanceFlow/actions/workflows/android.yml
+## 🧱 Stack
 
----
+- **Backend:** C# / ASP.NET Core
+- **ORM:** Entity Framework Core
+- **Banco:** PostgreSQL / Npgsql
+- **Autenticação:** JWT + refresh tokens
+- **Frontend:** HTML, CSS e JavaScript vanilla
+- **Deploy:** Docker / Railway para API e GitHub Pages para frontend
+- **Arquitetura:** separação entre API, Domain e Infrastructure
 
-## 🎯 Objetivo do projeto
-
-O FinanceFlow busca oferecer uma visão clara da vida financeira do usuário, permitindo:
-
-- registrar entradas e despesas;
-- organizar movimentações por conta e categoria;
-- acompanhar o saldo das contas;
-- visualizar o fluxo financeiro por período;
-- acompanhar limites de gastos por categoria;
-- separar investimentos do dinheiro operacional;
-- consultar histórico completo de movimentações;
-- analisar a evolução financeira através de relatórios;
-- utilizar a aplicação tanto no navegador quanto em Android.
-
-A aplicação foi estruturada para evoluir de uma aplicação web para uma solução financeira mais completa, mantendo frontend, API e persistência separados.
-
----
-
-# ✅ O que já está implementado
-
-## 📊 Dashboard
-
-O Dashboard é a visão principal da aplicação e atualmente possui:
-
-- seleção e navegação entre meses;
-- total de entradas do mês;
-- total de saídas do mês;
-- patrimônio operacional;
-- total investido;
-- fluxo financeiro;
-- listagem de contas e saldos;
-- histórico/resumo de movimentações;
-- visualização diária de entradas e saídas;
-- acesso rápido para criar uma nova transação;
-- estados vazios quando não existem dados no período.
-
-### Regra importante de patrimônio
-
-O backend diferencia dinheiro operacional de investimentos. Contas classificadas como investimento e transações relacionadas a investimentos não são tratadas como entradas ou despesas normais do fluxo de caixa. O saldo dos investimentos é apresentado separadamente.
-
-Essa regra evita contabilização duplicada do dinheiro investido. fileciteturn86file0L2-L2
-
----
-
-## 💸 Transações
-
-O módulo de transações funciona como o histórico financeiro geral.
-
-### Implementado
-
-- criação de transações;
-- edição de transações;
-- exclusão de transações;
-- entradas;
-- despesas;
-- associação com conta;
-- associação opcional com categoria;
-- descrição;
-- valor;
-- data;
-- observações;
-- confirmação da movimentação;
-- listagem de todas as transações;
-- filtros por data inicial;
-- filtros por data final;
-- filtro por categoria;
-- filtro por tipo;
-- limpeza dos filtros;
-- identificação visual de entradas e despesas;
-- quantidade de movimentações cadastradas.
-
-As transações possuem `UserId`, `AccountId` e `CategoryId`, e o backend valida que conta e categoria pertencem ao usuário autenticado antes de criar ou alterar uma movimentação. fileciteturn86file0L2-L2
-
----
-
-## 🏦 Contas
-
-O domínio já possui suporte para contas financeiras.
-
-### Tipos existentes
-
-- Conta corrente;
-- Poupança;
-- Carteira;
-- Dinheiro;
-- Investimento.
-
-Cada conta possui:
-
-- instituição;
-- nome;
-- tipo;
-- saldo;
-- usuário proprietário;
-- estrutura para configuração de rendimento.
-
-O backend possui operações para:
-
-- criar conta;
-- editar conta;
-- excluir conta;
-- consultar contas no resumo financeiro.
-
-Uma conta que possui transações não pode ser excluída diretamente, evitando perda de integridade do histórico. fileciteturn89file0L2-L2 fileciteturn86file0L2-L2
-
----
-
-## 🏷️ Categorias
-
-O sistema possui categorias associadas ao usuário.
-
-### Implementado
-
-- categorias de entrada;
-- categorias de saída;
-- nome da categoria;
-- cor da categoria;
-- criação de categorias;
-- exclusão de categorias;
-- associação de categorias às transações;
-- categorias padrão criadas automaticamente quando necessário.
-
-Existe proteção contra exclusão de uma categoria que já possui transações. fileciteturn86file0L2-L2
-
-### Categorias padrão atuais
-
-- Salário
-- Freelance
-- Alimentação
-- Moradia
-- Transporte
-- Faculdade
-- Lazer
-- Saúde
-- Assinaturas
-- Outros
-
----
-
-## 💰 Orçamentos
-
-O backend já possui a entidade e operações básicas de orçamento por categoria e mês.
-
-### Implementado
-
-- orçamento associado a uma categoria;
-- limite mensal;
-- mês de referência;
-- cálculo do valor gasto na categoria;
-- criação/atualização de orçamento;
-- exclusão de orçamento;
-- restrição para evitar dois orçamentos da mesma categoria no mesmo mês.
-
-O valor gasto é calculado a partir das despesas regulares da categoria no período, sem incluir transações tratadas como investimento. fileciteturn86file0L2-L2
-
----
-
-## 📈 Relatórios
-
-A aplicação possui uma área de relatórios com análise por período.
-
-### Implementado
-
-- seleção de mês;
-- navegação entre meses;
-- total de entradas;
-- total de despesas;
-- saldo do período;
-- gastos por categoria;
-- fluxo diário;
-- estados vazios para períodos sem movimentações.
-
-Os dados dos relatórios são derivados das movimentações armazenadas no backend.
-
----
-
-## 📊 Fluxo financeiro
-
-O FinanceFlow já possui estrutura para analisar o comportamento financeiro ao longo do mês.
-
-O resumo financeiro fornece dados de:
-
-```text
-Entradas
-   ↓
-Despesas
-   ↓
-Saldo operacional
-
-Investimentos
-   ↓
-Exibidos separadamente
-```
-
-O backend também disponibiliza os valores agrupados por dia para alimentar as visualizações de fluxo. fileciteturn86file0L2-L2
-
----
-
-## 📊 Investimentos
-
-O projeto já possui a **regra financeira de separação dos investimentos**.
-
-### Implementado
-
-- tipo de conta `Investment`;
-- identificação de contas de investimento;
-- identificação da categoria `Investimentos`;
-- separação das transações de investimento do fluxo operacional;
-- indicador separado para total investido;
-- prevenção de dupla contagem no saldo das contas de investimento;
-- estrutura de rendimento na entidade de conta.
-
-A entidade de contas já prevê tipos de rendimento como poupança, percentual do CDI, taxa anual fixa e IPCA+. fileciteturn89file0L2-L2
-
-> **Importante:** isso não significa que exista ainda um módulo completo de investimentos. A regra de separação está implementada, mas funcionalidades como rentabilidade histórica, aportes, resgates e carteira de ativos ainda precisam ser desenvolvidas.
-
----
-
-## 🎨 Interface e identidade visual
-
-A interface web possui identidade visual própria do FinanceFlow.
-
-### Implementado
-
-- logo oficial;
-- nome FinanceFlow;
-- menu lateral;
-- Dashboard;
-- Transações;
-- Relatórios;
-- Categorias;
-- Orçamentos;
-- Configurações;
-- cards financeiros;
-- tabelas;
-- filtros;
-- modais;
-- mensagens de estado;
-- notificações/toasts;
-- layout responsivo;
-- barra de navegação mobile;
-- tema claro;
-- tema escuro;
-- detecção da preferência do sistema;
-- persistência da preferência de tema no navegador.
-
-A logo está disponível em `frontend/assets/financeflow-logo.svg`.
-
----
-
-## 🌙 Tema
-
-A aplicação possui três estados de preferência:
-
-- `system`;
-- `light`;
-- `dark`.
-
-Quando configurado como `system`, o FinanceFlow utiliza a preferência de tema do navegador/sistema operacional.
-
-A preferência fica armazenada no navegador e o tema é aplicado também fora do Dashboard.
-
----
-
-# 📱 Android
-
-O projeto possui uma versão Android baseada em **WebView**.
-
-### Configuração atual
-
-- Nome: `FinanceFlow`;
-- Package: `com.kaykyferro.financeflow`;
-- WebView carregando a aplicação web publicada;
-- JavaScript habilitado;
-- DOM Storage habilitado;
-- suporte à navegação de retorno;
-- acesso HTTPS;
-- build Release automatizado;
-- GitHub Actions para geração do APK;
-- artifact `FinanceFlow-APK`.
-
-Documentação complementar:
-
-`docs/android-webview.md`
-
-O Android atual é um wrapper WebView. Ele ainda não é uma aplicação mobile nativa independente.
-
----
-
-## 📥 APK
-
-O APK é gerado através do GitHub Actions.
-
-Fluxo atual:
-
-```text
-GitHub
-  ↓
-Checkout
-  ↓
-Java + Android SDK
-  ↓
-Projeto Android WebView
-  ↓
-Gradle Release
-  ↓
-FinanceFlow.apk
-  ↓
-Artifact FinanceFlow-APK
-```
-
-O workflow está em:
-
-`.github/workflows/android.yml`
-
-Também existem workflows auxiliares relacionados à construção do Android/WebView e manutenção automatizada do projeto.
-
-> Para distribuição permanente, o APK ainda deve ser publicado em uma Release do GitHub ou posteriormente em uma loja de aplicativos.
-
----
-
-# 🏗️ Arquitetura
-
-O projeto utiliza uma separação entre API, domínio e infraestrutura.
+## 📁 Estrutura principal
 
 ```text
 FinanceFlow/
-├── database/
-│   └── schema.sql
-├── docs/
-│   ├── architecture.md
-│   └── android-webview.md
-├── frontend/
-│   ├── assets/
-│   │   └── financeflow-logo.svg
-│   ├── auth.html
-│   └── reset-password.html
 ├── src/
 │   ├── FinanceFlow.Api/
+│   │   ├── Authentication/
+│   │   └── Controllers/
 │   ├── FinanceFlow.Domain/
+│   │   └── Entities/
 │   └── FinanceFlow.Infrastructure/
-├── .github/
-│   └── workflows/
-├── Dockerfile
-├── docker-compose.yml
+│       ├── Data/
+│       └── Entities/
+├── frontend/
+│   ├── auth.html
+│   ├── reset-password.html
+│   └── credit-cards.html
+├── database/
+├── docs/
 ├── index.html
-└── README.md
+├── Dockerfile
+└── docker-compose.yml
 ```
 
----
+## ✅ O que já existe
 
-## ⚙️ Backend
+### 📊 Dashboard
 
-Tecnologias principais:
-
-- C#;
-- .NET 10;
-- ASP.NET Core Web API;
-- Entity Framework Core;
-- PostgreSQL;
-- Npgsql;
-- JWT Bearer;
-- Docker.
-
-O `FinanceFlowDbContext` possui atualmente conjuntos para:
-
-- Users;
-- Accounts;
-- Transactions;
-- Categories;
-- Budgets;
-- RefreshTokens;
-- AuthTokens.
-
-As entidades financeiras principais já estão modeladas no domínio. fileciteturn92file0L2-L2
-
----
-
-# 🗄️ Banco de dados
-
-O ambiente local utiliza PostgreSQL através do Docker Compose.
-
-Configuração de desenvolvimento:
-
-```yaml
-POSTGRES_DB: financeflow
-POSTGRES_USER: financeflow
-POSTGRES_PASSWORD: financeflow_dev
-ports:
-  - "5432:5432"
-```
-
-Para iniciar:
-
-```bash
-docker compose up -d
-```
-
-Para parar:
-
-```bash
-docker compose down
-```
-
-O projeto possui volume persistente para o PostgreSQL.
-
-O domínio financeiro atualmente trabalha principalmente com:
-
-```text
-Users
-Accounts
-Transactions
-Categories
-Budgets
-```
-
-Além das estruturas relacionadas à autenticação.
-
----
-
-# 🐳 Docker
-
-A API possui Dockerfile multi-stage para .NET.
-
-Fluxo:
-
-```text
-Restore
-  ↓
-Build
-  ↓
-Publish Release
-  ↓
-Runtime ASP.NET
-```
-
-O projeto também possui `docker-compose.yml` para o ambiente local.
-
----
-
-# 🔌 API financeira atual
-
-A API financeira está concentrada em:
-
-`/api/finance`
-
-Principais operações existentes:
-
-| Recurso | Criar | Editar | Excluir | Resumo/consulta |
-|---|:---:|:---:|:---:|:---:|
-| Transações | ✅ | ✅ | ✅ | ✅ |
-| Contas | ✅ | ✅ | ✅ | ✅ |
-| Categorias | ✅ | ❌ | ✅ | ✅ |
-| Orçamentos | ✅ | 🔄* | ✅ | ✅ |
-
-`*` O endpoint de criação de orçamento atualiza o registro existente quando já existe um orçamento para a mesma categoria e mês.
-
-O endpoint de resumo também entrega categorias, contas, transações, orçamentos e dados diários para o frontend. fileciteturn86file0L2-L2
-
----
-
-# 📌 Estado atual dos módulos
-
-| Módulo | Estado atual | Observação |
-|---|---|---|
-| Dashboard | 🟢 Implementado | Indicadores e fluxo financeiro |
-| Transações | 🟢 Implementado | CRUD + filtros |
-| Contas | 🟢 Backend implementado | CRUD de contas |
-| Categorias | 🟢 Backend implementado | Criar/excluir |
-| Relatórios | 🟢 Implementado | Análise mensal |
-| Orçamentos | 🟢 Backend implementado | Limite por categoria/mês |
-| Investimentos | 🟡 Parcial | Regra de separação implementada |
-| Tema claro/escuro | 🟢 Implementado | Sistema + preferência local |
-| Interface responsiva | 🟢 Implementado | Desktop + mobile web |
-| Android WebView | 🟢 Implementado | Build automatizado |
-| Autenticação | 🟡 Fora deste roadmap | Não considerada nesta avaliação |
-
----
-
-# 🚧 O que ainda falta
-
-Considerando **somente o produto financeiro** e ignorando autenticação, estes são os principais pontos que ainda faltam para transformar o FinanceFlow em uma solução mais completa.
-
-## 🔴 Prioridade alta
-
-### 1. Cartões de crédito
-
-Ainda falta um módulo específico para:
-
-- cadastro de cartões;
-- limite total;
-- limite disponível;
-- fechamento da fatura;
-- vencimento;
-- fatura atual;
-- faturas futuras;
-- compras parceladas;
-- parcelas individuais;
-- pagamento da fatura;
-- histórico de faturas;
-- impacto da fatura no fluxo de caixa.
-
-Esse é provavelmente o maior módulo financeiro que falta atualmente.
-
-### 2. Transações recorrentes
-
-Implementar:
-
-- mensalidades;
-- salários recorrentes;
-- assinaturas;
-- aluguel;
-- contas recorrentes;
-- periodicidade configurável;
-- data inicial/final;
-- geração automática das ocorrências;
-- opção de editar somente uma ocorrência ou toda a série.
-
-### 3. Metas financeiras
-
-Criar um módulo para objetivos como:
-
-- reserva de emergência;
-- comprar carro;
-- viagem;
-- entrada de imóvel;
-- objetivo de investimento.
-
-Deve permitir:
-
-- valor-alvo;
-- valor atual;
-- prazo;
-- progresso;
-- aportes;
-- percentual concluído.
-
-### 4. Calendário financeiro
-
-Adicionar uma visualização mensal mostrando:
-
-- entradas previstas;
-- despesas previstas;
-- contas recorrentes;
-- vencimentos;
-- parcelas;
-- faturas;
-- eventos financeiros.
-
-Isso será especialmente importante depois da implementação de cartões e recorrências.
-
----
-
-## 🟠 Prioridade média
-
-### 5. Evoluir o módulo de investimentos
-
-A regra básica já existe, mas falta transformar isso em um módulo completo.
-
-Sugestão:
-
-- carteira de investimentos;
-- ativos;
-- quantidade;
-- preço médio;
-- preço atual;
-- aportes;
-- resgates;
-- rentabilidade;
-- rentabilidade percentual;
-- dividendos;
-- juros;
-- evolução patrimonial;
-- histórico de patrimônio;
-- distribuição por classe de ativo.
-
-### 6. Histórico patrimonial
-
-Hoje existe o patrimônio operacional do período, mas ainda falta uma série histórica para responder perguntas como:
-
-> "Quanto eu tinha há 6 meses?"
-
-> "Meu patrimônio está crescendo?"
-
-> "Quanto cresci desde janeiro?"
-
-Seria interessante armazenar snapshots mensais ou calcular a evolução de forma consistente a partir do histórico financeiro.
-
-### 7. Melhorar categorias
-
-O módulo atual cobre criação e exclusão, mas pode evoluir com:
-
-- edição de categoria;
-- alteração de cor;
-- ícones;
-- subcategorias;
-- categorias personalizadas mais completas;
-- ordenação;
-- arquivamento em vez de exclusão.
-
-### 8. Melhorar contas
-
-O backend já possui CRUD, mas o módulo pode evoluir com:
-
-- saldo inicial separado das movimentações;
-- conciliação bancária;
-- transferência entre contas;
-- contas conjuntas;
-- arquivamento;
-- histórico de saldo;
-- configuração completa de rendimento;
-- indicadores por instituição.
-
-### 9. Transferências entre contas
-
-Atualmente o modelo de transação representa entrada ou despesa. Ainda falta uma operação financeira específica de:
-
-```text
-Conta A
-   ↓ transferência
-Conta B
-```
-
-Sem que isso seja interpretado como renda ou despesa.
-
-Esse recurso é **muito importante** para evitar distorções nos relatórios.
-
----
-
-## 🟡 Prioridade futura
-
-### 10. Relatórios avançados
-
-Evoluir os relatórios com:
-
-- comparação mês a mês;
-- comparação anual;
-- evolução de despesas;
-- evolução de receitas;
-- taxa de economia;
-- maiores categorias;
-- maiores despesas;
-- evolução patrimonial;
-- filtros personalizados;
-- exportação CSV;
-- exportação PDF;
-- gráficos mais avançados.
-
-### 11. Importação de extratos
-
-Permitir importar movimentações bancárias através de arquivos como:
-
-- CSV;
-- OFX;
-- eventualmente outros formatos bancários.
-
-O sistema poderia:
-
-```text
-Arquivo bancário
-      ↓
-Leitura
-      ↓
-Identificação de movimentações
-      ↓
-Sugestão de categorias
-      ↓
-Confirmação
-      ↓
-FinanceFlow
-```
-
-### 12. Busca global
-
-Adicionar pesquisa por:
-
-- descrição;
-- categoria;
-- conta;
-- valor;
-- data;
-- observação.
-
-### 13. Notificações e alertas
-
-Exemplos:
-
-- orçamento próximo do limite;
-- orçamento ultrapassado;
-- conta vencendo;
-- fatura próxima do vencimento;
-- meta atrasada;
-- saldo abaixo de determinado valor.
-
-### 14. Experiência mobile nativa
-
-O Android atual funciona como WebView. O próximo nível seria uma aplicação mobile realmente nativa ou multiplataforma, com:
-
-- navegação mobile própria;
-- armazenamento local/cache;
-- melhor experiência offline;
-- notificações;
-- biometria;
-- integração mais profunda com o sistema operacional.
-
----
-
-# 🧠 Roadmap recomendado
-
-Se a intenção for terminar o **núcleo financeiro** antes de adicionar recursos secundários, a ordem que faz mais sentido é:
-
-```text
-1. Transferências entre contas
-        ↓
-2. Cartões de crédito + faturas
-        ↓
-3. Transações recorrentes
-        ↓
-4. Calendário financeiro
-        ↓
-5. Metas financeiras
-        ↓
-6. Investimentos completos
-        ↓
-7. Histórico patrimonial
-        ↓
-8. Relatórios avançados
-        ↓
-9. Importação de extratos
-        ↓
-10. Notificações e automações
-        ↓
-11. Evolução do Android
-```
-
-A prioridade número **1** merece atenção especial: sem transferências explícitas, movimentações entre contas podem acabar aparecendo como receita/despesa e distorcer os indicadores.
-
----
-
-# 🔒 Segurança e produção
-
-O projeto possui estrutura de autenticação, tokens e separação de usuário no backend. A autenticação não faz parte do roadmap funcional deste documento.
-
-Para produção, ainda é necessário revisar cuidadosamente:
-
-- secrets;
-- variáveis de ambiente;
-- CORS;
-- JWT;
-- credenciais do banco;
-- HTTPS;
-- políticas de acesso;
-- logs;
-- backups;
-- migrations;
-- proteção contra abuso da API.
-
----
-
-# 🧪 Testes
-
-O projeto ainda precisa evoluir sua cobertura automatizada.
-
-Recomendação:
-
-### Backend
-
-- testes unitários de domínio;
-- testes dos controllers;
-- testes de regras financeiras;
-- testes de autorização por usuário;
-- testes de integração com PostgreSQL.
-
-### Frontend
-
-- testes dos filtros;
-- testes de cálculo dos indicadores;
-- testes das telas principais;
-- testes de criação/edição/exclusão;
-- testes responsivos.
-
-### Regras financeiras críticas
-
-Testar principalmente:
-
-- entradas;
+- resumo mensal;
+- receitas;
 - despesas;
-- investimentos;
-- transferências;
-- orçamentos;
-- parcelamentos;
-- recorrências;
-- saldo por conta;
-- patrimônio.
+- patrimônio operacional;
+- investimentos separados do fluxo de caixa;
+- contas e saldos;
+- histórico de transações;
+- gráfico por dia;
+- visão de categorias e orçamentos.
+
+### 💸 Transações
+
+- criação;
+- edição;
+- exclusão;
+- receita e despesa;
+- conta vinculada;
+- categoria opcional;
+- data;
+- observações;
+- filtros por período, categoria e tipo.
+
+### 🏦 Contas
+
+- cadastro;
+- instituição;
+- nome;
+- tipo de conta;
+- saldo inicial;
+- contas correntes, poupança, carteira, dinheiro e investimentos;
+- proteção por usuário;
+- bloqueio de exclusão quando existem transações vinculadas.
+
+### 🏷️ Categorias
+
+- categorias de receita e despesa;
+- cor personalizada;
+- proteção contra exclusão quando existem transações vinculadas;
+- categorias padrão criadas automaticamente para novos usuários.
+
+### 💰 Orçamentos
+
+- limite mensal por categoria;
+- cálculo de gasto realizado;
+- atualização do limite;
+- exclusão;
+- unicidade por usuário, categoria e mês.
+
+### 📈 Relatórios / fluxo financeiro
+
+- histórico completo;
+- separação entre fluxo operacional e investimentos;
+- entradas e saídas agrupadas por dia;
+- acompanhamento de patrimônio operacional;
+- visão de investimentos separada para evitar dupla contagem.
+
+### 📈 Investimentos
+
+- contas do tipo investimento;
+- rendimento configurável no domínio;
+- tipos de rendimento previstos: poupança, CDI percentual, taxa fixa anual e IPCA+;
+- investimentos não são tratados como receita/despesa operacional comum.
+
+### 🌙 Interface
+
+- tema claro;
+- tema escuro;
+- tema do sistema;
+- layout responsivo;
+- navegação desktop e mobile;
+- identidade visual FinanceFlow.
+
+### 👤 Sessões de conta
+
+- estrutura para múltiplas contas autenticadas no frontend;
+- troca de conta;
+- adição de outra conta;
+- tokens separados por conta;
+- atualização de access/refresh token por sessão.
+
+> A autenticação/multi-conta não é prioridade desta etapa do roadmap.
 
 ---
 
-# 🛠️ Stack atual
+# 💳 Cartões de crédito
 
-| Tecnologia | Uso |
-|---|---|
-| C# | Backend |
-| .NET 10 | Runtime/API |
-| ASP.NET Core | Web API |
-| Entity Framework Core | ORM |
-| PostgreSQL | Banco de dados |
-| Npgsql | Integração PostgreSQL |
-| HTML5 | Frontend |
-| CSS3 | Interface |
-| JavaScript | Frontend |
-| Docker | Infraestrutura |
-| Docker Compose | Desenvolvimento local |
-| GitHub Actions | CI/builds |
-| GitHub Pages | Frontend publicado |
-| Android WebView | Aplicativo Android atual |
-| Java 17 | Build Android |
-| Gradle | Build Android |
-| Android SDK 35 | Build Android |
+## Status: 🟡 Em implementação
 
----
+Este é o próximo grande módulo financeiro do projeto.
 
-# 📂 Documentação
+A primeira camada já foi implementada no backend, persistência e em uma tela frontend auxiliar.
 
-Documentos atualmente disponíveis:
+### Já implementado
 
-- `docs/architecture.md` — arquitetura do projeto.
-- `docs/android-webview.md` — funcionamento e build da versão Android.
+#### Cadastro do cartão
 
----
+- instituição;
+- nome do cartão;
+- limite total;
+- últimos 4 dígitos;
+- dia de fechamento;
+- dia de vencimento;
+- ativação/inativação;
+- isolamento por usuário.
 
-# 🚀 Desenvolvimento local
+#### Compras
 
-## PostgreSQL
+- compra vinculada ao cartão;
+- descrição;
+- valor total;
+- quantidade de parcelas de 1 a 120;
+- data da compra;
+- primeira fatura configurável;
+- categoria opcional;
+- observações;
+- cálculo da parcela;
+- distribuição automática das parcelas entre as faturas futuras.
 
-```bash
-docker compose up -d
-```
+#### Faturas
 
-## Backend
+- mês de referência;
+- fechamento;
+- vencimento;
+- valor total;
+- valor pago;
+- saldo restante;
+- status aberta, fechada, paga ou vencida;
+- histórico das faturas;
+- itens de cada fatura;
+- identificação da parcela, por exemplo `2/10`.
 
-A API está em:
+#### Limite
+
+O módulo já calcula:
 
 ```text
-src/FinanceFlow.Api
+Limite total
+- valores de faturas atuais/futuras ainda não pagas
+= limite disponível
+```
+
+O limite considera as compras parceladas futuras para evitar que o cartão pareça ter limite disponível que, na prática, já está comprometido.
+
+#### Pagamento de fatura
+
+O pagamento de uma fatura já pode:
+
+1. reduzir o saldo da fatura;
+2. alterar o status para paga quando quitada;
+3. registrar uma transação de despesa na conta usada para o pagamento;
+4. refletir o pagamento no fluxo de caixa.
+
+Se nenhuma conta for informada pela interface, a API usa automaticamente a primeira conta operacional disponível do usuário. A interface principal ainda deverá evoluir para permitir a escolha explícita da conta de pagamento.
+
+## API de cartões
+
+Base:
+
+```text
+/api/credit-cards
+```
+
+Endpoints atuais:
+
+```text
+GET    /api/credit-cards
+GET    /api/credit-cards/{id}
+POST   /api/credit-cards
+PUT    /api/credit-cards/{id}
+DELETE /api/credit-cards/{id}
+
+GET    /api/credit-cards/{id}/invoices
+POST   /api/credit-cards/{id}/purchases
+POST   /api/credit-cards/{id}/invoices/{invoiceId}/pay
+```
+
+## Banco de dados de cartões
+
+Foram adicionadas as entidades:
+
+```text
+CreditCard
+CreditCardPurchase
+CreditCardInvoice
+```
+
+E as tabelas:
+
+```text
+CreditCards
+CreditCardPurchases
+CreditCardInvoices
+```
+
+A inicialização da aplicação cria essas tabelas automaticamente quando necessário, mantendo o mecanismo atual de inicialização do banco.
+
+## Frontend auxiliar
+
+Existe uma primeira interface funcional em:
+
+```text
+frontend/credit-cards.html
+```
+
+Ela permite:
+
+- cadastrar cartão;
+- visualizar limite utilizado/disponível;
+- lançar compra;
+- definir parcelamento;
+- visualizar histórico de faturas;
+- abrir os itens de cada fatura;
+- registrar pagamento.
+
+### Próxima integração do frontend
+
+A tela auxiliar ainda precisa ser incorporada à navegação principal do FinanceFlow como um módulo oficial de **Cartões**, incluindo:
+
+- botão no menu lateral;
+- cards dos cartões na interface principal;
+- modal de cadastro/edição;
+- tela de detalhes do cartão;
+- seleção da conta utilizada para pagamento;
+- melhor visualização das parcelas;
+- integração com o Dashboard;
+- impacto das faturas futuras no calendário/fluxo de caixa.
+
+---
+
+# 🔴 Próximas prioridades
+
+## 1. Cartões de crédito
+
+### Em andamento
+
+- [x] modelo de cartão;
+- [x] limite total;
+- [x] limite disponível;
+- [x] fechamento;
+- [x] vencimento;
+- [x] compras;
+- [x] compras parceladas;
+- [x] geração lógica das faturas futuras;
+- [x] histórico de faturas;
+- [x] status de fatura;
+- [x] pagamento;
+- [x] impacto do pagamento no fluxo de caixa;
+- [x] tela frontend inicial;
+- [ ] integração completa ao frontend principal;
+- [ ] edição de compra;
+- [ ] cancelamento/estorno de compra;
+- [ ] antecipação de parcelas;
+- [ ] escolha da conta no pagamento;
+- [ ] fechamento manual de fatura;
+- [ ] suporte completo a compras após o fechamento;
+- [ ] arredondamento da última parcela para garantir que a soma das parcelas seja exatamente igual ao total;
+- [ ] integração visual com Dashboard e Relatórios;
+- [ ] calendário de faturas.
+
+## 2. Transferências entre contas
+
+- [ ] transferência como operação própria;
+- [ ] conta origem;
+- [ ] conta destino;
+- [ ] valor neutro para patrimônio;
+- [ ] histórico de transferência;
+- [ ] evitar dupla contagem em receitas/despesas.
+
+## 3. Recorrências
+
+- [ ] receitas recorrentes;
+- [ ] despesas recorrentes;
+- [ ] periodicidade;
+- [ ] geração automática;
+- [ ] recorrências futuras.
+
+## 4. Calendário financeiro
+
+- [ ] vencimentos;
+- [ ] faturas;
+- [ ] recorrências;
+- [ ] previsão diária de saldo;
+- [ ] visão mensal.
+
+## 5. Metas financeiras
+
+- [ ] criação de metas;
+- [ ] valor-alvo;
+- [ ] prazo;
+- [ ] progresso;
+- [ ] contribuições;
+- [ ] projeção.
+
+## 6. Investimentos avançados
+
+- [ ] ativos;
+- [ ] aportes;
+- [ ] resgates;
+- [ ] rentabilidade;
+- [ ] preço médio;
+- [ ] evolução patrimonial;
+- [ ] integração com fluxo de caixa.
+
+## 7. Relatórios avançados
+
+- [ ] comparação mensal;
+- [ ] evolução patrimonial;
+- [ ] despesas por categoria;
+- [ ] evolução de orçamento;
+- [ ] gastos com cartões;
+- [ ] exportação.
+
+## 8. Importação bancária
+
+- [ ] CSV;
+- [ ] OFX;
+- [ ] categorização automática;
+- [ ] prevenção de duplicidade;
+- [ ] conciliação.
+
+## 9. Notificações
+
+- [ ] vencimento de fatura;
+- [ ] orçamento próximo do limite;
+- [ ] conta recorrente;
+- [ ] saldo baixo;
+- [ ] metas.
+
+---
+
+# 🔐 Segurança e isolamento
+
+As entidades financeiras carregam `UserId` e as consultas da API são filtradas pelo usuário autenticado.
+
+O objetivo é manter o isolamento:
+
+```text
+Usuário A
+├── Contas
+├── Transações
+├── Categorias
+├── Orçamentos
+├── Investimentos
+└── Cartões / Faturas / Compras
+
+Usuário B
+├── Contas
+├── Transações
+├── Categorias
+├── Orçamentos
+├── Investimentos
+└── Cartões / Faturas / Compras
+```
+
+Nenhum usuário deve conseguir consultar ou alterar recursos financeiros pertencentes a outro usuário.
+
+---
+
+# 🚀 Execução
+
+## API
+
+```bash
+dotnet restore
+dotnet build
+dotnet run --project src/FinanceFlow.Api
+```
+
+A API utiliza PostgreSQL e pode receber a conexão pela variável:
+
+```text
+DATABASE_URL
+```
+
+## Docker
+
+```bash
+docker compose up --build
 ```
 
 ## Frontend
 
-A aplicação web principal está em:
+O frontend principal está no `index.html`.
+
+A página inicial do módulo de cartões está em:
 
 ```text
-index.html
-```
-
-A autenticação possui telas próprias em:
-
-```text
-frontend/auth.html
-frontend/reset-password.html
+frontend/credit-cards.html
 ```
 
 ---
 
-# 📜 Histórico de evolução
+# 📌 Estado do projeto
 
-O FinanceFlow passou por várias etapas de evolução, incluindo:
-
-- criação da aplicação web;
-- criação da API ASP.NET Core;
-- integração com PostgreSQL;
-- estrutura de autenticação;
-- criação do Dashboard;
-- criação do módulo de transações;
-- edição e exclusão de transações;
-- filtros de movimentações;
-- criação de contas;
-- criação de categorias;
-- criação de orçamentos;
-- relatórios mensais;
-- correção dos cálculos financeiros;
-- separação entre dinheiro operacional e investimentos;
-- criação da identidade visual;
-- implementação do tema claro/escuro;
-- criação do Android WebView;
-- automação da geração do APK;
-- correções recentes de JavaScript e da interface principal.
-
----
-
-# 📋 Resumo executivo
-
-### Já temos
-
-```text
-🟢 Dashboard
-🟢 Transações
-🟢 Filtros
-🟢 Contas
-🟢 Categorias
-🟢 Orçamentos
-🟢 Relatórios
-🟢 Fluxo financeiro
-🟢 Separação de investimentos
-🟢 Tema claro/escuro
-🟢 Interface responsiva
-🟢 Android WebView
-🟢 Build automatizado do APK
-```
-
-### Falta para o núcleo ficar realmente completo
-
-```text
-🔴 Transferências
-🔴 Cartões e faturas
-🔴 Recorrências
-🔴 Calendário financeiro
-🔴 Metas
-🟠 Investimentos completos
-🟠 Histórico patrimonial
-🟠 Relatórios avançados
-🟡 Importação de extratos
-🟡 Notificações
-🟡 Android nativo/multiplataforma
-```
+| Área | Estado |
+|---|---|
+| Dashboard | 🟢 Funcional |
+| Transações | 🟢 Funcional |
+| Contas | 🟢 Funcional |
+| Categorias | 🟢 Funcional |
+| Orçamentos | 🟢 Funcional |
+| Relatórios básicos | 🟢 Funcional |
+| Investimentos básicos | 🟢 Funcional |
+| Tema claro/escuro | 🟢 Funcional |
+| Autenticação | 🟢 Implementada |
+| Multi-conta | 🟡 Implementação recente |
+| Cartões - backend | 🟢 Implementado |
+| Cartões - banco | 🟢 Implementado |
+| Cartões - compras parceladas | 🟢 Implementado |
+| Cartões - faturas | 🟢 Implementado |
+| Cartões - pagamento | 🟢 Implementado |
+| Cartões - fluxo de caixa | 🟢 Implementado |
+| Cartões - frontend auxiliar | 🟢 Implementado |
+| Cartões - integração no app principal | 🟡 Próximo passo |
+| Transferências | 🔴 Pendente |
+| Recorrências | 🔴 Pendente |
+| Calendário financeiro | 🔴 Pendente |
+| Metas | 🔴 Pendente |
+| Investimentos avançados | 🟠 Parcial |
+| Relatórios avançados | 🔴 Pendente |
+| Importação OFX/CSV | 🔴 Pendente |
+| Notificações | 🔴 Pendente |
 
 ---
 
-# 👨‍💻 Desenvolvimento
+## 🛠️ Princípio de desenvolvimento
 
-Projeto desenvolvido por **KaykyFerro**.
+Cada nova funcionalidade deve atualizar simultaneamente:
 
-O FinanceFlow continua em desenvolvimento, com foco em construir uma plataforma financeira pessoal completa, consistente e escalável.
+1. domínio;
+2. persistência;
+3. API;
+4. frontend;
+5. documentação do README;
+6. checklist de progresso.
 
----
-
-# 📄 Licença
-
-Nenhuma licença de código aberto foi definida para o projeto até o momento.
+O README é tratado como o mapa vivo do projeto, e não como documentação histórica.
